@@ -1,0 +1,333 @@
+import { api, uploadForm } from "./api.js";
+import { fileButtons, fileIcon, renderFileList } from "./files.js";
+import { ensureScene } from "./scene.js";
+import { pages, state } from "./state.js";
+import { $, escapeHtml, shortText } from "./utils.js";
+import { statusStyle } from "./status-colors.js";
+
+export function toast(message) {
+  const el = $("#toast");
+  el.textContent = message;
+  el.hidden = false;
+  window.clearTimeout(toast.timer);
+  toast.timer = window.setTimeout(() => {
+    el.hidden = true;
+  }, 2800);
+}
+
+export async function loadSettings() {
+  state.settings = await api("/api/settings");
+  applySettings();
+}
+
+export function applySettings() {
+  const settings = state.settings || {};
+  const brandTitle = settings.brandTitle || "推免准备";
+  const workspaceName = settings.workspaceName || "本地私有工作台";
+  $("#brandTitle").textContent = brandTitle;
+  $("#workspaceName").textContent = workspaceName;
+  document.title = `${brandTitle}工作台`;
+  document.body.dataset.theme = settings.theme || "default";
+  const mark = $("#brandMark");
+  if (settings.avatarMode === "upload" && settings.avatarUrl) {
+    mark.innerHTML = `<img src="${settings.avatarUrl}" alt="" />`;
+  } else {
+    mark.textContent = (settings.avatarText || brandTitle || "推").slice(0, 2);
+  }
+}
+
+export function renderNav(setPage) {
+  $("#nav").innerHTML = pages
+    .map(
+      (page) => `
+        <button class="nav-btn ${state.page === page.id ? "active" : ""}" data-page="${page.id}">
+          <span class="nav-icon">${page.icon}</span><span>${page.title}</span>
+        </button>
+      `,
+    )
+    .join("");
+  $("#nav").querySelectorAll("button").forEach((button) => button.addEventListener("click", () => setPage(button.dataset.page)));
+}
+
+export function renderBadge(value, extra = "") {
+  return `<span class="badge ${extra}" style="${statusStyle(value)}">${escapeHtml(value || "未填写")}</span>`;
+}
+
+export function renderSimpleList(rows, titleKey, subKey, metaKey) {
+  if (!rows.length) return `<div class="empty">暂无记录。</div>`;
+  return `
+    <div class="list compact-list">
+      ${rows
+        .slice(0, 8)
+        .map((row) => `<div class="list-item"><strong>${escapeHtml(row[titleKey])}</strong><p>${escapeHtml(row[subKey] || "未填写")} · ${escapeHtml(row[metaKey] || "待补充")}</p></div>`)
+        .join("")}
+    </div>
+  `;
+}
+
+export function openPapersDialog(title, rows, allowAssign = false, refreshContact = null) {
+  $("#papersTitle").textContent = title;
+  $("#papersList").innerHTML = rows.length
+    ? `<div class="file-list">${rows
+        .map(
+          (row) => `
+            <div class="file-item">
+              ${fileIcon(row)}
+              <div class="file-main"><strong>${escapeHtml(row.name)}</strong><span>${escapeHtml(row.relative_path)} · ${escapeHtml(row.resource_kind || "资料")}</span></div>
+              <div class="actions">
+                ${fileButtons(row)}
+                ${allowAssign ? `${professorAssignSelect(row.id)}<button class="mini" data-remove-contact="${row.id}">移出套磁</button>` : `<button class="mini" data-edit-material="${row.id}">归类</button>`}
+              </div>
+            </div>
+          `,
+        )
+        .join("")}</div>`
+    : `<div class="empty">暂无相关文件。</div>`;
+  bindAssignActions(refreshContact);
+  $("#papersDialog").showModal();
+}
+
+function professorAssignSelect(id) {
+  return `
+    <select class="mini-select" data-assign-paper="${id}">
+      <option value="">归到导师...</option>
+      ${(state.contactData?.professors || []).map((prof) => `<option value="${escapeHtml(prof.name)}">${escapeHtml(prof.name)}</option>`).join("")}
+    </select>
+  `;
+}
+
+function bindAssignActions(refreshContact) {
+  document.querySelectorAll("[data-assign-paper]").forEach((select) => {
+    select.addEventListener("change", async () => {
+      if (!select.value) return;
+      await api(`/api/materials/${select.dataset.assignPaper}`, {
+        method: "PATCH",
+        body: JSON.stringify({ category: "套磁", stage: "套磁", related_professor: select.value }),
+      });
+      $("#papersDialog").close();
+      toast(`已归类到：${select.value}`);
+      refreshContact?.();
+    });
+  });
+  document.querySelectorAll("[data-remove-contact]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      await api(`/api/materials/${button.dataset.removeContact}`, {
+        method: "PATCH",
+        body: JSON.stringify({ category: "参考", stage: "通用", related_professor: "" }),
+      });
+      $("#papersDialog").close();
+      toast("已从未归类套磁资源移出");
+      refreshContact?.();
+    });
+  });
+}
+
+export async function ensureOptions() {
+  if (!state.options) state.options = await api("/api/options");
+  return state.options;
+}
+
+export async function openEditor(page, row = null, refresh) {
+  const entity = (await ensureScene()).entities[page];
+  const options = await ensureOptions();
+  const dialog = $("#editor");
+  $("#editorTitle").textContent = row ? `编辑${entity.label}` : `新增${entity.label}`;
+  $("#editorFields").innerHTML = entity.fields.map((field) => renderField(field, row, options)).join("");
+  renderEditorOrderActions(page, row, dialog, refresh);
+  $("#saveBtn").onclick = async (event) => {
+    event.preventDefault();
+    const payload = collectForm(entity);
+    if (page === "materials") normalizeMaterialPayload(payload);
+    const missing = entity.fields.find((field) => field.required && !String(payload[field.key] || "").trim());
+    if (missing) return toast(`请填写：${missing.label}`);
+    const path = row ? `${entity.endpoint}/${row.id}` : entity.endpoint;
+    const method = row ? "PATCH" : "POST";
+    await api(path, { method, body: JSON.stringify(payload) });
+    dialog.close();
+    toast("已保存");
+    refresh();
+  };
+  dialog.showModal();
+}
+
+async function renderEditorOrderActions(page, row, dialog, refresh) {
+  const actions = $("#editorOrderActions");
+  const entity = (await ensureScene()).entities[page];
+  if (!row?.id || !entity.ordered) {
+    actions.innerHTML = "";
+    return;
+  }
+  actions.innerHTML = `
+    <button type="button" class="secondary" data-editor-move="top">移至顶端</button>
+    <button type="button" class="secondary" data-editor-move="bottom">移至底端</button>
+  `;
+  actions.querySelector('[data-editor-move="top"]').onclick = () => moveEditorRow(page, row.id, 1, dialog, refresh);
+  actions.querySelector('[data-editor-move="bottom"]').onclick = () => moveEditorRow(page, row.id, 1000000, dialog, refresh);
+}
+
+async function moveEditorRow(page, id, targetPosition, dialog, refresh) {
+  await api(`/api/${page}/${id}/move`, { method: "POST", body: JSON.stringify({ target_position: targetPosition }) });
+  dialog.close();
+  toast(targetPosition === 1 ? "已移至顶端" : "已移至底端");
+  refresh();
+}
+
+function renderField(field, row, options) {
+  const value = row?.[field.key] ?? "";
+  const type = field.type || "text";
+  const full = field.full || type === "textarea" ? " full" : "";
+  let control = "";
+  if (type === "select" || type === "multiselect") {
+    const optionList = field.optionSource ? options[field.optionSource] || [] : field.options || [];
+    const values = field.allowEmpty ? ["", ...optionList] : [...optionList];
+    if (value && !values.includes(String(value))) values.push(String(value));
+    const multiple = type === "multiselect" ? " multiple" : "";
+    control = `<select name="${field.key}"${multiple}>${values.map((option) => `<option value="${escapeHtml(option)}" ${String(value) === String(option) ? "selected" : ""}>${escapeHtml(option || "未设置")}</option>`).join("")}</select>`;
+  } else if (type === "textarea") {
+    control = `<textarea name="${field.key}">${escapeHtml(value)}</textarea>`;
+  } else if (type === "checkbox") {
+    control = `<input name="${field.key}" type="checkbox" ${value === "1" || value === 1 || value === true ? "checked" : ""} />`;
+  } else if (type === "file") {
+    control = `<input name="${field.key}" type="file" />`;
+  } else {
+    const inputType = type === "number" ? "number" : type === "date" ? "date" : "text";
+    control = `<input name="${field.key}" type="${inputType}" value="${escapeHtml(value)}" />`;
+  }
+  return `<label class="field${full}"><span>${field.label}</span>${control}</label>`;
+}
+
+function collectForm(entity) {
+  const payload = {};
+  entity.fields.forEach((field) => {
+    const el = document.querySelector(`[name="${field.key}"]`);
+    if (!el) {
+      payload[field.key] = "";
+      return;
+    }
+    if (field.type === "checkbox") {
+      payload[field.key] = el.checked ? "1" : "0";
+    } else {
+      payload[field.key] = el.value ?? "";
+    }
+  });
+  return payload;
+}
+
+function normalizeMaterialPayload(payload) {
+  const stageMap = { 基本材料: "通用", 套磁: "套磁", 院校: "夏令营", 项目: "科研", 面试: "面试", 参考: "通用" };
+  payload.stage = stageMap[payload.category] || "通用";
+  if (payload.category !== "套磁") payload.related_professor = "";
+  if (payload.category !== "院校") payload.related_program = "";
+  if (!payload.resource_kind) payload.resource_kind = payload.category || "参考";
+}
+
+export function openSettings(refresh) {
+  const dialog = $("#settingsDialog");
+  const settings = state.settings || {};
+  dialog.querySelector('[name="brandTitle"]').value = settings.brandTitle || "";
+  dialog.querySelector('[name="workspaceName"]').value = settings.workspaceName || "";
+  dialog.querySelector('[name="avatarText"]').value = settings.avatarText || "";
+  dialog.querySelector('[name="motto"]').value = settings.motto || "";
+  dialog.querySelector('[name="theme"]').value = settings.theme || "default";
+  dialog.querySelector(`[name="avatarMode"][value="${settings.avatarMode || "text"}"]`).checked = true;
+  $("#avatarInput").value = "";
+  updateAvatarPreview();
+  dialog.querySelectorAll('[name="avatarMode"], [name="avatarText"]').forEach((el) => el.addEventListener("input", updateAvatarPreview));
+  $("#avatarInput").onchange = updateAvatarPreview;
+  $("#saveSettingsBtn").onclick = (event) => saveSettings(event, refresh);
+  bindDataRoot(refresh);
+  dialog.showModal();
+}
+
+async function bindDataRoot(refresh) {
+  try {
+    const info = await api("/api/dataroot");
+    $("#dataRootPath").value = info.root;
+    renderDataRootHistory(info.history);
+  } catch (error) {
+    toast(error.message || "读取数据目录失败");
+    return;
+  }
+  $("#migrateDataRootBtn").onclick = async () => {
+    const path = $("#dataRootNewPath").value.trim();
+    if (!path) return toast("请输入新的数据目录路径");
+    try {
+      const info = await api("/api/dataroot/migrate", { method: "POST", body: JSON.stringify({ path }) });
+      toast("迁移完成，数据目录已更新");
+      $("#dataRootPath").value = info.root;
+      $("#dataRootNewPath").value = "";
+      renderDataRootHistory(info.history);
+      refresh();
+    } catch (error) {
+      toast(error.message || "迁移失败");
+    }
+  };
+  $("#rollbackDataRootBtn").onclick = async () => {
+    if (!confirm("确定回滚到上一个数据目录吗？")) return;
+    try {
+      const info = await api("/api/dataroot/rollback", { method: "POST" });
+      toast("已回滚到上一个数据目录");
+      $("#dataRootPath").value = info.root;
+      renderDataRootHistory(info.history);
+      refresh();
+    } catch (error) {
+      toast(error.message || "回滚失败");
+    }
+  };
+}
+
+function renderDataRootHistory(history) {
+  const el = $("#dataRootHistory");
+  if (!history || !history.length) {
+    el.innerHTML = "";
+    return;
+  }
+  el.innerHTML = `<p class="field-caption">历史迁移记录（最近 5 条）：</p>` +
+    history
+      .slice(-5)
+      .reverse()
+      .map((entry) => `<p class="field-caption">${escapeHtml(entry.at || "")} · ${escapeHtml(entry.from || "")} → ${escapeHtml(entry.to || "")}</p>`)
+      .join("");
+}
+
+function updateAvatarPreview() {
+  const dialog = $("#settingsDialog");
+  const mode = dialog.querySelector('[name="avatarMode"]:checked')?.value || "text";
+  const preview = $("#avatarPreview");
+  const file = $("#avatarInput").files[0];
+  if (mode === "upload" && file) {
+    preview.innerHTML = `<img src="${URL.createObjectURL(file)}" alt="" />`;
+  } else if (mode === "upload" && state.settings?.avatarUrl) {
+    preview.innerHTML = `<img src="${state.settings.avatarUrl}" alt="" />`;
+  } else {
+    preview.textContent = (dialog.querySelector('[name="avatarText"]').value || state.settings?.brandTitle || "推").slice(0, 2);
+  }
+}
+
+async function saveSettings(event, refresh) {
+  event.preventDefault();
+  const dialog = $("#settingsDialog");
+  const payload = {
+    brandTitle: dialog.querySelector('[name="brandTitle"]').value.trim(),
+    workspaceName: dialog.querySelector('[name="workspaceName"]').value.trim(),
+    avatarText: dialog.querySelector('[name="avatarText"]').value.trim(),
+    avatarMode: dialog.querySelector('[name="avatarMode"]:checked')?.value || "text",
+    motto: dialog.querySelector('[name="motto"]').value.trim(),
+    theme: dialog.querySelector('[name="theme"]').value,
+  };
+  state.settings = await api("/api/settings", { method: "PATCH", body: JSON.stringify(payload) });
+  const avatar = $("#avatarInput").files[0];
+  if (payload.avatarMode === "upload" && avatar) {
+    const form = new FormData();
+    form.append("avatar", avatar);
+    state.settings = await uploadForm("/api/settings/avatar", form);
+  }
+  applySettings();
+  dialog.close();
+  toast("设置已保存");
+  refresh();
+}
+
+export function shortDirection(value) {
+  return shortText(value, 10);
+}

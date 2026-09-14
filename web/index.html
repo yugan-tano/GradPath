@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>推免准备工作台</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%235877e8'/%3E%3Ctext x='32' y='43' text-anchor='middle' font-size='34' fill='white'%3E%E6%8E%A8%3C/text%3E%3C/svg%3E" />
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark" id="brandMark">推</div>
+        <div>
+          <h1 id="brandTitle">推免准备</h1>
+          <p id="workspaceName">本地私有工作台</p>
+        </div>
+      </div>
+      <nav id="nav"></nav>
+      <div class="sidebar-foot">
+        <button class="ghost" id="settingsBtn" title="调整工作台信息和风格">设置</button>
+        <button class="ghost" id="scanBtn" title="重新扫描保研准备文件夹">扫描材料</button>
+        <button class="ghost" id="backupBtn" title="备份当前数据库">备份数据</button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Today</p>
+          <h2 id="pageTitle">总览</h2>
+        </div>
+        <div class="search">
+          <input id="searchInput" placeholder="搜索当前页面" />
+        </div>
+      </header>
+
+      <section id="toast" class="toast" hidden></section>
+      <section id="app"></section>
+    </main>
+
+    <dialog id="editor">
+      <form method="dialog" class="dialog-card">
+        <div class="dialog-head">
+          <h3 id="editorTitle">编辑</h3>
+          <button value="cancel" class="icon-btn" title="关闭">×</button>
+        </div>
+        <div id="editorFields" class="form-grid"></div>
+        <menu>
+          <span id="editorOrderActions" class="editor-order-actions"></span>
+          <button value="cancel" class="secondary">取消</button>
+          <button id="saveBtn" value="default" class="primary">保存</button>
+        </menu>
+      </form>
+    </dialog>
+
+    <dialog id="papersDialog">
+      <form method="dialog" class="dialog-card">
+        <div class="dialog-head">
+          <h3 id="papersTitle">导师论文</h3>
+          <button value="cancel" class="icon-btn" title="关闭">×</button>
+        </div>
+        <div id="papersList" class="paper-dialog-body"></div>
+      </form>
+    </dialog>
+
+    <dialog id="settingsDialog">
+      <form method="dialog" class="dialog-card">
+        <div class="dialog-head">
+          <h3>设置</h3>
+          <button value="cancel" class="icon-btn" title="关闭">×</button>
+        </div>
+        <div class="form-grid">
+          <label class="field">
+            <span>名字</span>
+            <input name="brandTitle" />
+          </label>
+          <label class="field">
+            <span>工作台名</span>
+            <input name="workspaceName" />
+          </label>
+          <div class="avatar-setting full">
+            <label class="field">
+              <span>头像方式</span>
+              <div class="segmented compact">
+                <label><input type="radio" name="avatarMode" value="text" />文字</label>
+                <label><input type="radio" name="avatarMode" value="upload" />上传</label>
+              </div>
+            </label>
+            <div>
+              <span class="field-caption">头像预览</span>
+              <div class="avatar-preview" id="avatarPreview">推</div>
+            </div>
+          </div>
+          <label class="field">
+            <span>头像文字</span>
+            <input name="avatarText" maxlength="2" placeholder="可为空" />
+          </label>
+          <label class="field">
+            <span>上传头像</span>
+            <input id="avatarInput" type="file" accept="image/png,image/jpeg,image/gif,image/webp" />
+          </label>
+          <label class="field full">
+            <span>首页横幅文字</span>
+            <input name="motto" maxlength="42" placeholder="可为空" />
+          </label>
+          <label class="field full">
+            <span>整体风格</span>
+            <select name="theme">
+              <option value="default">晴空薄荷</option>
+              <option value="morandi">莫兰迪色系</option>
+              <option value="pink">粉红泡沫</option>
+              <option value="forest">松林薄雾</option>
+              <option value="paper">暖纸书桌</option>
+              <option value="aurora">极光蓝紫</option>
+              <option value="matcha">抹茶拿铁</option>
+              <option value="sunset">落日珊瑚</option>
+              <option value="ink">墨蓝银灰</option>
+              <option value="ugly90s">丑萌 90s</option>
+              <option value="traffic">红绿灯警告</option>
+              <option value="neonMud">霓虹泥潭</option>
+            </select>
+          </label>
+        </div>
+        <div class="data-root-setting">
+          <h4>数据目录</h4>
+          <label class="field full">
+            <span>当前位置</span>
+            <input id="dataRootPath" readonly />
+          </label>
+          <label class="field full">
+            <span>迁移到新位置</span>
+            <div class="data-root-line">
+              <input id="dataRootNewPath" placeholder="输入新的数据目录绝对路径，例如 D:\gradpath-data" />
+              <button type="button" id="migrateDataRootBtn" class="secondary">迁移</button>
+            </div>
+            <p class="field-caption">迁移会复制全部数据并校验一致性，旧目录保留作为回滚副本。</p>
+          </label>
+          <div class="data-root-history" id="dataRootHistory"></div>
+          <div class="actions">
+            <button type="button" id="rollbackDataRootBtn" class="secondary">回滚到上一个目录</button>
+          </div>
+        </div>
+        <div class="settings-meta">
+          <a href="https://github.com/BlairCode/baoyan_workbench" target="_blank" rel="noreferrer">GitHub: BlairCode/baoyan_workbench</a>
+          <span>本网站为开源项目，仅供学习与交流使用，使用风险由用户自行承担。</span>
+        </div>
+        <menu>
+          <button value="cancel" class="secondary">取消</button>
+          <button id="saveSettingsBtn" value="default" class="primary">保存</button>
+        </menu>
+      </form>
+    </dialog>
+
+    <script type="module" src="/js/main.js"></script>
+  </body>
+</html>

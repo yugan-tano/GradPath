@@ -1,0 +1,119 @@
+{
+  "id": "tuimian",
+  "name": "推免 SOP",
+  "version": "1.0.0",
+  "entities": {
+    "materials": {
+      "label": "文件",
+      "endpoint": "/api/materials",
+      "extraWritable": ["stage", "resource_kind"],
+      "fields": [
+        { "key": "name", "label": "名称", "type": "text", "required": true },
+        { "key": "category", "label": "归类", "type": "select", "options": ["基本材料", "套磁", "院校", "项目", "面试", "参考"] },
+        { "key": "related_professor", "label": "关联导师", "type": "select", "optionSource": "professors", "allowEmpty": true },
+        { "key": "related_program", "label": "关联院校", "type": "select", "optionSource": "programs", "allowEmpty": true },
+        { "key": "path", "label": "本地路径", "type": "text", "full": true },
+        { "key": "note", "label": "备注", "type": "textarea", "full": true },
+        { "key": "pinned", "label": "置顶", "type": "select", "options": ["0", "1"] }
+      ]
+    },
+    "programs": {
+      "label": "院校项目",
+      "endpoint": "/api/programs",
+      "extraWritable": ["display_order"],
+      "search": ["school", "abbreviation", "college", "major", "program_type", "direction", "stage", "date_text", "account", "status", "note"],
+      "order": "display_order asc, id desc",
+      "filterField": "status",
+      "ordered": true,
+      "filesButton": { "label": "文件", "linkField": "school", "matchField": "related_program" },
+      "columns": [
+        ["school", "学校"],
+        ["college", "学院"],
+        ["major", "专业"],
+        ["program_type", "类型"],
+        ["direction", "方向"],
+        ["stage", "阶段"],
+        ["date_text", "时间"],
+        ["status", "状态"],
+        ["note", "备注"]
+      ],
+      "fields": [
+        { "key": "school", "label": "学校", "type": "text", "required": true },
+        { "key": "college", "label": "学院", "type": "text" },
+        { "key": "major", "label": "专业", "type": "text" },
+        { "key": "program_type", "label": "类型", "type": "select", "options": ["专硕", "学硕", "直博", "硕博连读", "其他"] },
+        { "key": "direction", "label": "方向", "type": "text" },
+        { "key": "stage", "label": "阶段", "type": "select", "options": ["准备", "套磁", "夏令营", "开放日", "预推免", "九推", "统考复试", "其他"] },
+        { "key": "date_text", "label": "时间", "type": "text" },
+        { "key": "account", "label": "账号", "type": "text" },
+        { "key": "password", "label": "密码", "type": "text" },
+        { "key": "status", "label": "状态", "type": "select", "options": ["有意向", "关注中", "填报中", "报名", "入营", "参营", "通过", "优营", "未通过", "入营放弃", "优营放弃", "放弃报名", "鸽了", "被鸽了"], "badge": true },
+        { "key": "note", "label": "备注", "type": "textarea", "full": true }
+      ]
+    },
+    "professors": {
+      "label": "导师",
+      "endpoint": "/api/professors",
+      "extraWritable": ["display_order"],
+      "search": ["name", "school", "college", "direction", "email", "status", "note"],
+      "order": "display_order asc, id desc",
+      "ordered": true,
+      "fields": [
+        { "key": "name", "label": "姓名", "type": "text", "required": true },
+        { "key": "school", "label": "学校", "type": "text" },
+        { "key": "college", "label": "学院/组", "type": "text" },
+        { "key": "direction", "label": "研究方向", "type": "text", "full": true },
+        { "key": "email", "label": "邮箱", "type": "text" },
+        { "key": "homepage", "label": "主页", "type": "text" },
+        { "key": "status", "label": "状态", "type": "select", "options": ["未联系", "已准备套磁信", "已发送", "官回", "养鱼", "已回复", "约面试", "面试通过", "无回复", "默拒", "拒绝", "暂缓", "放弃", "鸽了", "被鸽了", "已归档"], "badge": true },
+        { "key": "note", "label": "备注", "type": "textarea", "full": true }
+      ]
+    },
+    "tasks": {
+      "label": "待办",
+      "endpoint": "/api/tasks",
+      "extraWritable": [],
+      "search": ["title", "scope", "priority", "status", "note"],
+      "order": "case status when '已完成' then 1 else 0 end, due_date = '', due_date asc, id desc",
+      "columns": [
+        ["title", "事项"],
+        ["scope", "范围"],
+        ["due_date", "截止"],
+        ["priority", "优先级"],
+        ["status", "状态"],
+        ["note", "备注"]
+      ],
+      "fields": [
+        { "key": "title", "label": "事项", "type": "text", "required": true, "full": true },
+        { "key": "scope", "label": "范围", "type": "text" },
+        { "key": "due_date", "label": "截止日期", "type": "date" },
+        { "key": "priority", "label": "优先级", "type": "select", "options": ["高", "中", "低"], "badge": true, "hotValues": ["高"] },
+        { "key": "status", "label": "状态", "type": "select", "options": ["待办", "进行中", "已完成", "搁置"], "badge": true },
+        { "key": "note", "label": "备注", "type": "textarea", "full": true }
+      ]
+    },
+    "questions": {
+      "label": "面试题",
+      "endpoint": "/api/questions",
+      "extraWritable": [],
+      "search": ["topic", "question", "answer", "tag"],
+      "order": "id desc",
+      "columns": [
+        ["topic", "主题"],
+        ["question", "问题"],
+        ["answer", "答案要点"],
+        ["tag", "标签"]
+      ],
+      "fields": [
+        { "key": "topic", "label": "主题", "type": "select", "options": ["综合", "自我介绍", "项目", "科研", "专业课", "英语", "导师", "规划", "时事"] },
+        { "key": "question", "label": "问题", "type": "textarea", "required": true, "full": true },
+        { "key": "answer", "label": "答案要点", "type": "textarea", "full": true },
+        { "key": "tag", "label": "标签", "type": "text" }
+      ]
+    }
+  },
+  "acts": [],
+  "checklists": {},
+  "templates": [],
+  "timeline": []
+}

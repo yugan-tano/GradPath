@@ -1,7 +1,20 @@
 {
   "id": "tuimian",
   "name": "推免 SOP",
+  "nameEn": "Recommendation",
+  "description": "推免（保研）申请全程：院校、导师套磁、夏令营、面试 SOP",
+  "descriptionEn": "Graduate recommendation (免试) application: programs, professor contact, summer camps, interview SOP.",
   "version": "2.0.0",
+  "materialsDir": "保研准备",
+  "pages": [
+    { "id": "dashboard", "type": "dashboard", "title": "总览", "titleEn": "Overview" },
+    { "id": "sop", "type": "sop", "title": "面试 SOP", "titleEn": "Interview SOP" },
+    { "id": "contact", "type": "contact", "title": "套磁", "titleEn": "Contact" },
+    { "id": "resources", "type": "resources", "title": "资源", "titleEn": "Resources" },
+    { "id": "programs", "type": "table", "entity": "programs", "title": "院校", "titleEn": "Programs" },
+    { "id": "tasks", "type": "table", "entity": "tasks", "title": "待办", "titleEn": "Tasks" },
+    { "id": "questions", "type": "table", "entity": "questions", "title": "面试题", "titleEn": "Questions" }
+  ],
   "settings": {
     "brandTitle": "GradPath",
     "workspaceName": "推免准备 · 本地工作台",
@@ -17,6 +30,14 @@
       "label": "文件",
       "endpoint": "/api/materials",
       "extraWritable": ["stage", "resource_kind"],
+      "columns": [
+        ["relative_path", "路径"],
+        ["name", "名称"],
+        ["category", "归类"],
+        ["related_professor", "关联导师"],
+        ["related_program", "关联院校"],
+        ["note", "备注"]
+      ],
       "systemColumns": {
         "path": "text not null unique",
         "ext": "text not null default ''",
@@ -150,26 +171,30 @@
   "checklists": {
     "interview_basic": {
       "owner": "global",
-      "items": ["中文自我介绍 3 分钟", "英文自我介绍 3 分钟", "简历已更新到最新版", "成绩单与排名证明", "获奖证书整理"]
+      "items": ["中文自我介绍 3 分钟", "英文自我介绍 3 分钟", "简历已更新到最新版", "成绩单与排名证明", "获奖证书整理"],
+      "itemsEn": ["3-min Chinese self-introduction", "3-min English self-introduction", "Resume updated to latest version", "Transcript & ranking proof", "Award certificates organized"]
     },
     "interview_knowledge": {
       "owner": "global",
-      "items": ["核心专业课系统复习", "科研项目细节梳理（问题/方法/结果/贡献）", "读过的论文动机与贡献", "目标导师研究方向调研"]
+      "items": ["核心专业课系统复习", "科研项目细节梳理（问题/方法/结果/贡献）", "读过的论文动机与贡献", "目标导师研究方向调研"],
+      "itemsEn": ["Systematic review of core courses", "Organize research project details (problem/method/result/contribution)", "Motivation & contribution of papers read", "Research direction of target professors"]
     },
     "interview_mock": {
       "owner": "global",
-      "items": ["完成 1 次模拟面试", "模拟面试复盘记录", "高频问题答案打磨", "临场应变与英文问答演练"]
+      "items": ["完成 1 次模拟面试", "模拟面试复盘记录", "高频问题答案打磨", "临场应变与英文问答演练"],
+      "itemsEn": ["Complete 1 mock interview", "Mock interview review notes", "Polish high-frequency question answers", "Practice impromptu & English Q&A"]
     }
   },
   "acts": [
     {
       "id": "interview",
       "name": "推免面试 SOP",
+      "nameEn": "Recommendation Interview SOP",
       "stages": [
-        { "id": "i_materials", "name": "材料与自我介绍", "checklist": "interview_basic", "exit": { "op": "checklist", "checklist": "interview_basic", "target": 1.0 } },
-        { "id": "i_knowledge", "name": "专业与科研复习", "checklist": "interview_knowledge", "enter": { "op": "stageDone", "stage": "i_materials" }, "exit": { "op": "checklist", "checklist": "interview_knowledge", "target": 1.0 } },
-        { "id": "i_mock", "name": "模拟面试", "checklist": "interview_mock", "enter": { "op": "stageDone", "stage": "i_knowledge" }, "exit": { "op": "checklist", "checklist": "interview_mock", "target": 1.0 } },
-        { "id": "i_formal", "name": "正式面试与复盘", "enter": { "op": "stageDone", "stage": "i_mock" } }
+        { "id": "i_materials", "name": "材料与自我介绍", "nameEn": "Materials & Self-introduction", "checklist": "interview_basic", "exit": { "op": "checklist", "checklist": "interview_basic", "target": 1.0 } },
+        { "id": "i_knowledge", "name": "专业与科研复习", "nameEn": "Major & Research Review", "checklist": "interview_knowledge", "enter": { "op": "stageDone", "stage": "i_materials" }, "exit": { "op": "checklist", "checklist": "interview_knowledge", "target": 1.0 } },
+        { "id": "i_mock", "name": "模拟面试", "nameEn": "Mock Interview", "checklist": "interview_mock", "enter": { "op": "stageDone", "stage": "i_knowledge" }, "exit": { "op": "checklist", "checklist": "interview_mock", "target": 1.0 } },
+        { "id": "i_formal", "name": "正式面试与复盘", "nameEn": "Formal Interview & Review", "enter": { "op": "stageDone", "stage": "i_mock" } }
       ]
     }
   ],

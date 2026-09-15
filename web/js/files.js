@@ -1,4 +1,5 @@
 import { api } from "./api.js";
+import { t } from "./i18n.js";
 import { escapeHtml, fileSize } from "./utils.js";
 
 const iconMap = {
@@ -34,13 +35,13 @@ export function fileIcon(row) {
 
 export function fileButtons(row) {
   return `
-    <button class="mini" data-open="${row.id}">打开</button>
-    ${row.actions?.canPreview ? `<a class="mini link-btn" href="${row.actions.viewUrl}" target="_blank">预览</a>` : ""}
+    <button class="mini" data-open="${row.id}">${t("common.open")}</button>
+    ${row.actions?.canPreview ? `<a class="mini link-btn" href="${row.actions.viewUrl}" target="_blank">${t("common.preview")}</a>` : ""}
   `;
 }
 
 export function renderFileList(rows, options = {}) {
-  if (!rows.length) return `<div class="empty small">暂无文件</div>`;
+  if (!rows.length) return `<div class="empty small">${t("files.empty")}</div>`;
   const nested = options.nested ? " nested-files" : "";
   return `
     <div class="file-list${nested}">
@@ -58,29 +59,29 @@ export function renderFileItem(row, options = {}) {
       ${fileIcon(row)}
       <div class="file-main">
         <strong title="${escapeHtml(rel)}">${escapeHtml(row.name)}</strong>
-        <span>${escapeHtml(row.category || row.resource_kind)} · ${escapeHtml(row.resource_kind || "资料")} · ${fileSize(row.size)}</span>
+        <span>${escapeHtml(row.category || row.resource_kind)} · ${escapeHtml(row.resource_kind || t("files.resource"))} · ${fileSize(row.size)}</span>
         <code>${escapeHtml(rel)}</code>
         ${row.related_professor || row.related_program ? `<p class="file-note">${escapeHtml(row.related_professor || row.related_program)}</p>` : ""}
         ${row.note ? `<p class="file-note">${escapeHtml(row.note)}</p>` : ""}
       </div>
-      <div class="actions">${fileButtons(row)}<button class="mini" data-edit-material="${row.id}">归类</button><button class="mini danger" data-delete-file="${row.id}" data-file-name="${escapeHtml(row.name)}">删除文件</button></div>
+      <div class="actions">${fileButtons(row)}<button class="mini" data-edit-material="${row.id}">${t("contact.categorize")}</button><button class="mini danger" data-delete-file="${row.id}" data-file-name="${escapeHtml(row.name)}">${t("files.delete")}</button></div>
     </div>
   `;
 }
 
 export async function openMaterial(id, toast) {
   await api(`/api/materials/${id}/open`, { method: "POST" });
-  toast("已调用本机默认程序打开文件");
+  toast(t("files.opened"));
 }
 
 export async function openFolderPath(path, toast) {
   await api("/api/folders/open", { method: "POST", body: JSON.stringify({ path }) });
-  toast("已打开文件夹");
+  toast(t("files.folderOpened"));
 }
 
 export async function deleteFile(id, name, toast, refresh) {
-  if (!confirm(`确定删除本地文件吗？\n\n${name}\n\n此操作会直接删除文件。`)) return;
+  if (!confirm(t("files.deleteConfirm", { name }))) return;
   await api(`/api/materials/${id}/file`, { method: "DELETE" });
-  toast("已删除本地文件");
+  toast(t("files.deleted"));
   refresh();
 }

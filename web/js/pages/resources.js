@@ -1,5 +1,6 @@
 import { api, uploadForm } from "../api.js";
 import { renderFileList } from "../files.js";
+import { t } from "../i18n.js";
 import { state } from "../state.js";
 import { escapeHtml } from "../utils.js";
 
@@ -13,12 +14,12 @@ export async function renderResources(bindCommonActions, scanMaterials) {
     <section class="panel">
       <div class="panel-head">
         <div>
-          <h3>资源浏览</h3>
-          <p class="panel-subtitle">${data.mode === "search" ? `搜索“${escapeHtml(data.query)}”` : "按需加载当前目录，进入文件夹后才读取下一级"}</p>
+          <h3>${t("res.title")}</h3>
+          <p class="panel-subtitle">${data.mode === "search" ? t("res.searching", { q: escapeHtml(data.query) }) : t("res.lazy")}</p>
         </div>
         <div class="actions">
-          <label class="primary upload-label">添加文件<input id="uploadInput" type="file" hidden /></label>
-          <button class="secondary" id="scanInlineBtn">同步文件</button>
+          <label class="primary upload-label">${t("res.addFile")}<input id="uploadInput" type="file" hidden /></label>
+          <button class="secondary" id="scanInlineBtn">${t("common.sync")}</button>
         </div>
       </div>
       <div class="panel-body resource-browser">
@@ -49,9 +50,9 @@ function renderDirectory(data) {
         <article class="resource-folder-card">
           <button class="resource-folder-main" data-resource-path="${escapeHtml(folder.relativePath)}">
             <span class="resource-folder-icon" aria-hidden="true"></span>
-            <span><strong>${escapeHtml(folder.name)}</strong><small>${folder.childCount} 个直接子项</small></span>
+            <span><strong>${escapeHtml(folder.name)}</strong><small>${t("res.childCount", { n: folder.childCount })}</small></span>
           </button>
-          <button class="mini" data-open-folder-path="${escapeHtml(folder.path)}">本机打开</button>
+          <button class="mini" data-open-folder-path="${escapeHtml(folder.path)}">${t("res.openLocal")}</button>
         </article>
       `,
     )
@@ -62,19 +63,19 @@ function renderDirectory(data) {
       ${data.breadcrumbs
         .map((item, index) => `<button data-resource-path="${escapeHtml(item.relativePath)}" ${index === data.breadcrumbs.length - 1 ? "disabled" : ""}>${escapeHtml(item.name)}</button>`)
         .join("<span>/</span>")}
-      <button class="mini resource-open-current" data-open-folder-path="${escapeHtml(data.path)}">打开当前文件夹</button>
+      <button class="mini resource-open-current" data-open-folder-path="${escapeHtml(data.path)}">${t("res.openCurrent")}</button>
     </nav>
     ${folders ? `<div class="resource-folder-grid">${folders}</div>` : ""}
-    ${data.files.length ? `<div class="resource-current-files"><h4>当前层文件 <span>${data.files.length}</span></h4>${renderFileList(data.files)}</div>` : ""}
-    ${isEmpty ? `<div class="empty">当前文件夹为空。</div>` : ""}
+    ${data.files.length ? `<div class="resource-current-files"><h4>${t("res.currentFiles")} <span>${data.files.length}</span></h4>${renderFileList(data.files)}</div>` : ""}
+    ${isEmpty ? `<div class="empty">${t("res.empty")}</div>` : ""}
   `;
 }
 
 function renderSearchResults(data) {
   return `
     <div class="resource-search-summary">
-      <span>找到 ${data.items.length} 个文件${data.truncated ? "，仅显示前 200 个" : ""}</span>
-      <button class="secondary" data-clear-resource-search>返回目录</button>
+      <span>${t("res.found", { n: data.items.length })}${data.truncated ? t("res.truncated") : ""}</span>
+      <button class="secondary" data-clear-resource-search>${t("res.backToDir")}</button>
     </div>
     ${renderFileList(data.items)}
   `;
@@ -90,6 +91,6 @@ async function uploadFile(event) {
   const form = new FormData();
   form.append("file", file);
   await uploadForm("/api/materials/upload", form);
-  window.dispatchEvent(new CustomEvent("app-toast", { detail: `已添加：${file.name}` }));
+  window.dispatchEvent(new CustomEvent("app-toast", { detail: t("res.added", { name: file.name }) }));
   window.dispatchEvent(new CustomEvent("app-refresh"));
 }

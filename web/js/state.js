@@ -8,14 +8,15 @@ export const state = {
   options: null,
   settings: null,
   scene: null,
+  scenes: [],
+  activeSceneId: "",
 };
 
-export const pages = [
-  { id: "dashboard", title: "总览" },
-  { id: "sop", title: "面试 SOP" },
-  { id: "contact", title: "套磁" },
-  { id: "resources", title: "资源" },
-  { id: "programs", title: "院校" },
-  { id: "tasks", title: "待办" },
-  { id: "questions", title: "面试" },
-];
+// 场景驱动的导航页：由 scenes/<id>/scene.json 的 pages 声明，不再硬编码。
+export function scenePages() {
+  return state.scene?.pages || [];
+}
+
+export function currentPage() {
+  return scenePages().find((item) => item.id === state.page) || null;
+}

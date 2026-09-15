@@ -1,0 +1,293 @@
+{
+  "id": "phd",
+  "name": "申博 SOP",
+  "nameEn": "PhD Application",
+  "description": "博士申请：选校套磁、材料、申请、面试、录取",
+  "descriptionEn": "PhD application: school selection & contact, materials, submission, interview, decision.",
+  "version": "1.0.0",
+  "materialsDir": "申博资料",
+  "settings": {
+    "brandTitle": "GradPath",
+    "workspaceName": "申博管理 · 本地工作台",
+    "avatarText": "",
+    "avatarMode": "text",
+    "motto": "志存高远，笃行不怠",
+    "theme": "default",
+    "schoolColors": "{}",
+    "github": "https://github.com/yugan-tano/GradPath"
+  },
+  "pages": [
+    { "id": "dashboard", "type": "dashboard", "title": "总览", "titleEn": "Overview" },
+    { "id": "sop", "type": "sop", "title": "申博 SOP", "titleEn": "PhD SOP" },
+    { "id": "contact", "type": "contact", "title": "套磁", "titleEn": "Contact" },
+    { "id": "schools", "type": "table", "entity": "schools", "title": "院校", "titleEn": "Schools" },
+    { "id": "applications", "type": "table", "entity": "applications", "title": "申请", "titleEn": "Applications" },
+    { "id": "policies", "type": "table", "entity": "policies", "title": "政策", "titleEn": "Policies" },
+    { "id": "english", "type": "table", "entity": "english", "title": "英语", "titleEn": "English" },
+    { "id": "resources", "type": "resources", "title": "资料", "titleEn": "Resources" },
+    { "id": "tasks", "type": "table", "entity": "tasks", "title": "待办", "titleEn": "Tasks" },
+    { "id": "questions", "type": "table", "entity": "questions", "title": "面试题", "titleEn": "Questions" }
+  ],
+  "entities": {
+    "materials": {
+      "label": "文件",
+      "endpoint": "/api/materials",
+      "extraWritable": ["stage", "resource_kind"],
+      "columns": [
+        ["name", "名称"],
+        ["category", "归类"],
+        ["related_professor", "关联导师"],
+        ["related_program", "关联院校"],
+        ["note", "备注"]
+      ],
+      "systemColumns": {
+        "path": "text not null unique",
+        "ext": "text not null default ''",
+        "size": "integer not null default 0",
+        "mtime": "text not null default ''",
+        "relative_path": "text not null default ''",
+        "folder": "text not null default ''",
+        "missing": "integer not null default 0"
+      },
+      "fields": [
+        { "key": "name", "label": "名称", "type": "text", "required": true },
+        { "key": "category", "label": "归类", "type": "select", "options": ["基本材料", "套磁", "院校", "面试", "参考"] },
+        { "key": "related_professor", "label": "关联导师", "type": "select", "optionSource": "professors", "allowEmpty": true },
+        { "key": "related_program", "label": "关联院校", "type": "select", "optionSource": "schools", "allowEmpty": true },
+        { "key": "note", "label": "备注", "type": "textarea", "full": true },
+        { "key": "pinned", "label": "置顶", "type": "checkbox" },
+        { "key": "links", "label": "关联", "type": "links" }
+      ]
+    },
+    "schools": {
+      "label": "院校",
+      "endpoint": "/api/schools",
+      "optionField": "school",
+      "extraWritable": [],
+      "search": ["school", "college", "major", "program_type", "direction", "status", "deadline", "note"],
+      "order": "id desc",
+      "filterField": "status",
+      "columns": [
+        ["school", "学校"],
+        ["college", "学院"],
+        ["major", "专业"],
+        ["program_type", "类型"],
+        ["direction", "方向"],
+        ["deadline", "截止"],
+        ["status", "状态"],
+        ["note", "备注"]
+      ],
+      "fields": [
+        { "key": "school", "label": "学校", "type": "text", "required": true },
+        { "key": "college", "label": "学院", "type": "text" },
+        { "key": "major", "label": "专业", "type": "text" },
+        { "key": "program_type", "label": "类型", "type": "select", "options": ["普博", "直博", "硕博连读", "申请考核", "其他"] },
+        { "key": "direction", "label": "方向", "type": "text" },
+        { "key": "deadline", "label": "截止日期", "type": "date" },
+        { "key": "status", "label": "状态", "type": "select", "options": ["有意向", "关注中", "套磁中", "报名", "材料审核", "笔试", "面试", "拟录取", "未通过", "放弃"], "badge": true },
+        { "key": "note", "label": "备注", "type": "textarea", "full": true },
+        { "key": "links", "label": "关联", "type": "links" }
+      ]
+    },
+    "professors": {
+      "label": "导师",
+      "endpoint": "/api/professors",
+      "extraWritable": ["display_order"],
+      "search": ["name", "school", "college", "direction", "email", "status", "note"],
+      "order": "display_order asc, id desc",
+      "ordered": true,
+      "orderFilter": "status != '已归档'",
+      "fields": [
+        { "key": "name", "label": "姓名", "type": "text", "required": true },
+        { "key": "school", "label": "学校", "type": "text" },
+        { "key": "college", "label": "学院/组", "type": "text" },
+        { "key": "direction", "label": "研究方向", "type": "text", "full": true },
+        { "key": "email", "label": "邮箱", "type": "text" },
+        { "key": "homepage", "label": "主页", "type": "text" },
+        { "key": "status", "label": "状态", "type": "select", "options": ["未联系", "已准备套磁信", "已发送", "已回复", "约面试", "面试通过", "无回复", "拒绝", "放弃", "已归档"], "badge": true },
+        { "key": "note", "label": "备注", "type": "textarea", "full": true },
+        { "key": "links", "label": "关联", "type": "links" }
+      ]
+    },
+    "applications": {
+      "label": "申请",
+      "endpoint": "/api/applications",
+      "extraWritable": [],
+      "search": ["school", "professor", "status", "deadline", "note"],
+      "order": "case status when '已录取' then 1 when '拟录取' then 1 else 0 end, deadline = '', deadline asc, id desc",
+      "filterField": "status",
+      "columns": [
+        ["school", "学校"],
+        ["professor", "导师"],
+        ["deadline", "截止"],
+        ["status", "状态"],
+        ["note", "备注"]
+      ],
+      "fields": [
+        { "key": "school", "label": "学校", "type": "select", "optionSource": "schools", "allowEmpty": true },
+        { "key": "professor", "label": "导师", "type": "select", "optionSource": "professors", "allowEmpty": true },
+        { "key": "deadline", "label": "截止日期", "type": "date" },
+        { "key": "status", "label": "状态", "type": "select", "options": ["准备中", "已提交", "材料审核", "笔试", "面试", "拟录取", "已录取", "未通过", "放弃"], "badge": true },
+        { "key": "note", "label": "备注", "type": "textarea", "full": true },
+        { "key": "links", "label": "关联", "type": "links" }
+      ]
+    },
+    "tasks": {
+      "label": "待办",
+      "endpoint": "/api/tasks",
+      "extraWritable": [],
+      "search": ["title", "scope", "priority", "status", "note"],
+      "order": "case status when '已完成' then 1 else 0 end, due_date = '', due_date asc, id desc",
+      "columns": [
+        ["title", "事项"],
+        ["scope", "范围"],
+        ["due_date", "截止"],
+        ["priority", "优先级"],
+        ["status", "状态"],
+        ["note", "备注"]
+      ],
+      "fields": [
+        { "key": "title", "label": "事项", "type": "text", "required": true, "full": true },
+        { "key": "scope", "label": "范围", "type": "text" },
+        { "key": "due_date", "label": "截止日期", "type": "date" },
+        { "key": "priority", "label": "优先级", "type": "select", "options": ["高", "中", "低"], "badge": true, "hotValues": ["高"] },
+        { "key": "status", "label": "状态", "type": "select", "options": ["待办", "进行中", "已完成", "搁置"], "badge": true },
+        { "key": "note", "label": "备注", "type": "textarea", "full": true },
+        { "key": "links", "label": "关联", "type": "links" }
+      ]
+    },
+    "policies": {
+      "label": "政策",
+      "titleField": "title",
+      "endpoint": "/api/policies",
+      "extraWritable": [],
+      "search": ["school", "school_type", "category", "title", "content", "attention", "status", "note"],
+      "order": "id desc",
+      "filterField": "school_type",
+      "columns": [
+        ["school", "学校"],
+        ["school_type", "学校类型"],
+        ["category", "政策类别"],
+        ["title", "政策标题"],
+        ["deadline", "时间节点"],
+        ["status", "状态"]
+      ],
+      "fields": [
+        { "key": "school", "label": "学校", "type": "text", "required": true },
+        { "key": "school_type", "label": "学校类型", "type": "select", "options": ["本校", "梦校"], "badge": true },
+        { "key": "category", "label": "政策类别", "type": "select", "options": ["毕业要求", "英语要求", "论文发表", "奖学金", "申请材料", "学费住宿", "其他"] },
+        { "key": "title", "label": "政策标题", "type": "text", "required": true, "full": true },
+        { "key": "content", "label": "政策内容", "type": "textarea", "full": true },
+        { "key": "attention", "label": "关注点", "type": "textarea", "full": true },
+        { "key": "deadline", "label": "时间节点", "type": "date" },
+        { "key": "status", "label": "状态", "type": "select", "options": ["待关注", "已了解", "已达标", "需行动"], "badge": true },
+        { "key": "note", "label": "备注", "type": "textarea", "full": true },
+        { "key": "links", "label": "关联", "type": "links" }
+      ]
+    },
+    "english": {
+      "label": "英语",
+      "endpoint": "/api/english",
+      "extraWritable": [],
+      "search": ["exam_type", "target_total", "current_total", "status", "note"],
+      "order": "id desc",
+      "filterField": "exam_type",
+      "columns": [
+        ["exam_type", "考试类型"],
+        ["target_total", "目标总分"],
+        ["current_total", "当前总分"],
+        ["test_date", "最近考试日期"],
+        ["status", "状态"]
+      ],
+      "fields": [
+        { "key": "exam_type", "label": "考试类型", "type": "select", "options": ["雅思 IELTS", "托福 TOEFL", "GRE", "六级 CET-6", "专四 TEM-4", "专八 TEM-8", "其他"], "badge": true },
+        { "key": "target_total", "label": "目标总分", "type": "number" },
+        { "key": "current_total", "label": "当前总分", "type": "number" },
+        { "key": "listening", "label": "听力", "type": "number" },
+        { "key": "reading", "label": "阅读", "type": "number" },
+        { "key": "writing", "label": "写作", "type": "number" },
+        { "key": "speaking", "label": "口语", "type": "number" },
+        { "key": "test_date", "label": "最近考试日期", "type": "date" },
+        { "key": "status", "label": "状态", "type": "select", "options": ["未开始", "备考中", "已报名", "已出分", "已达标"], "badge": true },
+        { "key": "note", "label": "备注", "type": "textarea", "full": true },
+        { "key": "links", "label": "关联", "type": "links" }
+      ]
+    },
+    "questions": {
+      "label": "面试题",
+      "endpoint": "/api/questions",
+      "extraWritable": [],
+      "search": ["topic", "question", "answer", "tag"],
+      "order": "id desc",
+      "columns": [
+        ["topic", "主题"],
+        ["question", "问题"],
+        ["answer", "答案要点"],
+        ["tag", "标签"]
+      ],
+      "fields": [
+        { "key": "topic", "label": "主题", "type": "select", "options": ["综合", "自我介绍", "项目", "科研", "专业课", "英语", "导师", "规划"] },
+        { "key": "question", "label": "问题", "type": "textarea", "required": true, "full": true },
+        { "key": "answer", "label": "答案要点", "type": "textarea", "full": true },
+        { "key": "tag", "label": "标签", "type": "text" },
+        { "key": "links", "label": "关联", "type": "links" }
+      ]
+    }
+  },
+  "seeds": {
+    "tasks": [
+      { "title": "整理目标院校与导师清单", "scope": "选校", "due_date": "", "priority": "高", "status": "待办", "note": "按研究方向筛选合适的课题组。" },
+      { "title": "准备研究计划与套磁信", "scope": "套磁", "due_date": "", "priority": "高", "status": "待办", "note": "针对每位导师个性化套磁。" },
+      { "title": "核对各校申请截止日期", "scope": "申请", "due_date": "", "priority": "中", "status": "待办", "note": "建立截止时间表，避免遗漏。" }
+    ],
+    "questions": [
+      { "topic": "自我介绍", "question": "请用 1-3 分钟介绍你自己。", "answer": "", "tag": "通用" },
+      { "topic": "科研", "question": "介绍一下你硕士期间的研究工作与贡献。", "answer": "", "tag": "科研" },
+      { "topic": "规划", "question": "为什么选择攻读博士？你的研究计划是什么？", "answer": "", "tag": "申博" }
+    ],
+    "policies": [
+      { "school": "本校", "school_type": "本校", "category": "毕业要求", "title": "硕士毕业学分要求", "content": "", "attention": "", "deadline": "", "status": "待关注", "note": "" }
+    ],
+    "english": [
+      { "exam_type": "雅思 IELTS", "target_total": 6.5, "current_total": 0, "listening": 0, "reading": 0, "writing": 0, "speaking": 0, "test_date": "", "status": "未开始", "note": "" }
+    ]
+  },
+  "checklists": {
+    "phd_contact": {
+      "owner": "global",
+      "items": ["确定目标院校与导师", "研读目标导师论文与方向", "准备个性化套磁信", "发送套磁信并跟进"],
+      "itemsEn": ["Shortlist target schools & professors", "Read target professors' papers", "Prepare personalized contact emails", "Send & follow up on contact emails"]
+    },
+    "phd_materials": {
+      "owner": "global",
+      "items": ["更新简历与个人陈述", "准备成绩单与学位证明", "撰写研究计划", "准备推荐信与导师联系"],
+      "itemsEn": ["Update CV & personal statement", "Prepare transcripts & degree certificates", "Write the research proposal", "Arrange recommendation letters"]
+    },
+    "phd_apply": {
+      "owner": "global",
+      "items": ["核对各校申请截止时间", "填写网申系统", "上传申请材料", "确认提交并记录状态"],
+      "itemsEn": ["Confirm application deadlines", "Complete the online application", "Upload all materials", "Submit & track status"]
+    },
+    "phd_interview": {
+      "owner": "global",
+      "items": ["准备自我介绍与研究介绍", "梳理项目细节与贡献", "准备导师与方向相关问题", "完成面试并复盘"],
+      "itemsEn": ["Prepare self-intro & research talk", "Organize project details & contributions", "Prepare professor & direction questions", "Complete interviews & review"]
+    }
+  },
+  "acts": [
+    {
+      "id": "phd",
+      "name": "申博 SOP",
+      "nameEn": "PhD Application SOP",
+      "stages": [
+        { "id": "p_contact", "name": "选校与套磁", "nameEn": "Selection & Contact", "checklist": "phd_contact", "exit": { "op": "checklist", "checklist": "phd_contact", "target": 1.0 } },
+        { "id": "p_materials", "name": "材料准备", "nameEn": "Materials", "checklist": "phd_materials", "enter": { "op": "stageDone", "stage": "p_contact" }, "exit": { "op": "checklist", "checklist": "phd_materials", "target": 1.0 } },
+        { "id": "p_apply", "name": "提交申请", "nameEn": "Submission", "checklist": "phd_apply", "enter": { "op": "stageDone", "stage": "p_materials" }, "exit": { "op": "checklist", "checklist": "phd_apply", "target": 1.0 } },
+        { "id": "p_interview", "name": "面试考核", "nameEn": "Interview", "checklist": "phd_interview", "enter": { "op": "stageDone", "stage": "p_apply" }, "exit": { "op": "checklist", "checklist": "phd_interview", "target": 1.0 } },
+        { "id": "p_decision", "name": "录取决策", "nameEn": "Decision", "enter": { "op": "stageDone", "stage": "p_interview" } }
+      ]
+    }
+  ],
+  "templates": [],
+  "timeline": []
+}

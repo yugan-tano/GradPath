@@ -1,8 +1,9 @@
 import { api } from "../api.js";
+import { label, t } from "../i18n.js";
 import { ensureScene } from "../scene.js";
 import { state } from "../state.js";
 import { escapeHtml } from "../utils.js";
-import { openEditor, openPapersDialog, renderBadge, toast } from "../ui.js";
+import { openEditor, openPapersDialog, renderBadge, renderExportButtons, toast } from "../ui.js";
 
 const filterState = {};
 
@@ -15,9 +16,9 @@ export async function renderTablePage(page, bindCommonActions, refresh) {
   state.rows[page] = items;
   document.querySelector("#app").innerHTML = `
     <section class="panel">
-      <div class="panel-head"><h3>${entity.label}</h3><button class="primary" id="addBtn">新增</button></div>
+      <div class="panel-head"><h3>${label(entity.label)}</h3><div class="actions">${renderExportButtons(page)}<button class="primary" id="addBtn">${t("common.add")}</button></div></div>
       <div class="panel-body">
-        ${filterField ? renderFilters(entity, allItems, items.length, page) : `<div class="toolbar"><p>${items.length} 条记录</p></div>`}
+        ${filterField ? renderFilters(entity, allItems, items.length, page) : `<div class="toolbar"><p>${t("table.records", { n: items.length })}</p></div>`}
         ${renderTable(entity, page, items)}
       </div>
     </section>
@@ -30,14 +31,14 @@ export async function renderTablePage(page, bindCommonActions, refresh) {
 
 function renderFilters(entity, rows, visibleCount, page) {
   const field = entity.filterField;
-  const values = uniqueValues(rows.map((row) => row[field] || "未填写"));
+  const values = uniqueValues(rows.map((row) => row[field] || t("common.notSet")));
   const current = filterState[page] || "";
   return `
     <div class="toolbar program-filters">
-      <p>${visibleCount} / ${rows.length} 条记录</p>
+      <p>${t("table.recordsFiltered", { visible: visibleCount, total: rows.length })}</p>
       <div class="filter-controls">
         <select class="mini-select" data-entity-filter="${page}">
-          <option value="">全部状态</option>
+          <option value="">${t("table.all")}</option>
           ${values.map((value) => `<option value="${escapeHtml(value)}" ${current === value ? "selected" : ""}>${escapeHtml(value)}</option>`).join("")}
         </select>
       </div>
@@ -46,18 +47,18 @@ function renderFilters(entity, rows, visibleCount, page) {
 }
 
 function renderTable(entity, page, rows) {
-  if (!rows.length) return `<div class="empty">暂无记录。</div>`;
+  if (!rows.length) return `<div class="empty">${t("common.empty")}</div>`;
   return `
     <div class="table-wrap">
       <table>
-        <thead><tr>${entity.columns.map(([, label]) => `<th>${label}</th>`).join("")}<th>操作</th></tr></thead>
+        <thead><tr>${entity.columns.map(([, colLabel]) => `<th>${label(colLabel)}</th>`).join("")}<th>${t("common.actions")}</th></tr></thead>
         <tbody>
           ${rows
             .map(
               (row) => `
                 <tr>
                   ${entity.columns.map(([key]) => `<td>${formatCell(key, row, entity)}</td>`).join("")}
-                  <td><div class="actions">${entityActions(entity, page, row)}<button class="mini" data-action="edit" data-page="${page}" data-id="${row.id}">编辑</button><button class="mini danger" data-action="delete" data-page="${page}" data-id="${row.id}">删除</button></div></td>
+                  <td><div class="actions">${entityActions(entity, page, row)}<button class="mini" data-action="edit" data-page="${page}" data-id="${row.id}">${t("common.edit")}</button><button class="mini danger" data-action="delete" data-page="${page}" data-id="${row.id}">${t("common.delete")}</button></div></td>
                 </tr>
               `,
             )
@@ -74,7 +75,7 @@ function entityActions(entity, page, row) {
     html += `<button class="mini" data-move-row="${row.id}" data-dir="-1" data-page="${page}">↑</button><button class="mini" data-move-row="${row.id}" data-dir="1" data-page="${page}">↓</button>`;
   }
   if (entity.filesButton) {
-    html += `<button class="mini" data-show-files="${escapeHtml(row[entity.filesButton.linkField])}" data-page="${page}">${entity.filesButton.label || "文件"}</button>`;
+    html += `<button class="mini" data-show-files="${escapeHtml(row[entity.filesButton.linkField])}" data-page="${page}">${label(entity.filesButton.label || "文件")}</button>`;
   }
   return html;
 }
@@ -100,10 +101,10 @@ function bindTableActions(entity, page, refresh) {
         const row = state.rows[targetPage].find((item) => String(item.id) === String(id));
         return openEditor(targetPage, row, refresh);
       }
-      if (!confirm("确定删除这条记录吗？本地文件不会被删除。")) return;
+      if (!confirm(t("table.deleteConfirm"))) return;
       const targetEntity = state.scene.entities[targetPage];
       await api(`${targetEntity.endpoint}/${id}`, { method: "DELETE" });
-      toast("已删除记录");
+      toast(t("table.deleted"));
       refresh();
     });
   });
@@ -129,5 +130,5 @@ async function openEntityFiles(entity, linkValue) {
   const matchField = entity.filesButton.matchField;
   const data = await api("/api/materials");
   const rows = data.items.filter((item) => !item.missing && item[matchField] === linkValue);
-  openPapersDialog(`${linkValue}的相关文件`, rows);
+  openPapersDialog(t("table.relatedFiles", { name: linkValue }), rows);
 }

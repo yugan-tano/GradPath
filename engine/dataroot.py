@@ -27,9 +27,8 @@ def _app_data_dir() -> Path:
 ANCHOR_PATH = _app_data_dir() / "data_root.json"
 
 # Directories that belong to the user's data (as opposed to code).
-#   data/        SQLite (app.db), backups, avatar, state/*.json
-#   保研准备/      the user's scanned materials
-DATA_SUBDIRS = ["data", "保研准备"]
+# The SQLite DB lives under data/ (per-scene); each scene's material folder is
+# resolved dynamically by ``_data_subdirs()`` during migration.
 
 _cache: dict = {"root": None, "mtime": None}
 
@@ -71,7 +70,10 @@ def data_dir() -> Path:
 
 
 def source_dir() -> Path:
-    return current_data_root() / "保研准备"
+    """The active scene's material directory (scene-declared, e.g. 保研准备)."""
+    from .scene import active_scene, scene_materials_dir
+
+    return current_data_root() / scene_materials_dir(active_scene())
 
 
 def state_dir() -> Path:
@@ -79,7 +81,10 @@ def state_dir() -> Path:
 
 
 def db_path() -> Path:
-    return data_dir() / "app.db"
+    """Per-scene SQLite database (keeps each scene's entities isolated)."""
+    from .scene import active_scene_id
+
+    return data_dir() / "scenes" / active_scene_id() / "app.db"
 
 
 def ensure_dirs() -> None:
@@ -126,6 +131,22 @@ def root_info() -> dict:
     }
 
 
+def _data_subdirs() -> list[str]:
+    """Data directories to migrate: the SQLite dir plus every scene's materials dir."""
+    from .scene import list_scenes, load_scene
+
+    dirs = ["data"]
+    for info in list_scenes():
+        try:
+            cfg = load_scene(info["id"])
+        except (OSError, ValueError):
+            continue
+        name = cfg.get("materialsDir") or info["id"]
+        if name not in dirs:
+            dirs.append(name)
+    return dirs
+
+
 def migrate(new_root: str) -> dict:
     """Move the data root using the KeePin-style six-step protocol.
 
@@ -148,7 +169,8 @@ def migrate(new_root: str) -> dict:
         _migrating = True
     try:
         # 2. snapshot current data before touching anything
-        manifests = {name: _snapshot(current / name) for name in DATA_SUBDIRS}
+        subdirs = _data_subdirs()
+        manifests = {name: _snapshot(current / name) for name in subdirs}
 
         # 3. create & validate the new location
         try:
@@ -162,7 +184,7 @@ def migrate(new_root: str) -> dict:
         # 4. copy data dirs
         import shutil
 
-        for name in DATA_SUBDIRS:
+        for name in subdirs:
             src = current / name
             dst = target / name
             if dst.exists():
@@ -173,9 +195,9 @@ def migrate(new_root: str) -> dict:
                 dst.mkdir(parents=True, exist_ok=True)
 
         # verify each copied dir matches its source manifest
-        for name in DATA_SUBDIRS:
+        for name in subdirs:
             if _snapshot(target / name) != manifests[name]:
-                for sub in DATA_SUBDIRS:
+                for sub in subdirs:
                     leftover = target / sub
                     if leftover.exists():
                         shutil.rmtree(leftover)

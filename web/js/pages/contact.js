@@ -1,7 +1,8 @@
 import { api } from "../api.js";
+import { t } from "../i18n.js";
 import { state } from "../state.js";
 import { escapeHtml } from "../utils.js";
-import { openEditor, openPapersDialog, renderBadge, shortDirection, toast } from "../ui.js";
+import { openEditor, openPapersDialog, renderBadge, renderExportButtons, shortDirection, toast } from "../ui.js";
 
 const contactFilters = {
   school: "",
@@ -45,18 +46,19 @@ export async function renderContact(bindCommonActions, refresh) {
   document.querySelector("#app").innerHTML = `
     <section class="panel">
       <div class="panel-head">
-        <h3>导师套磁</h3>
+        <h3>${t("contact.title")}</h3>
         <div class="actions">
-          <button class="secondary" id="schoolColorBtn">学校配色</button>
-          <button class="secondary" id="scanInlineBtn">同步文件</button>
-          <button class="primary" id="addProfessorBtn">新增导师</button>
+          ${renderExportButtons("professors")}
+          <button class="secondary" id="schoolColorBtn">${t("contact.schoolColor")}</button>
+          <button class="secondary" id="scanInlineBtn">${t("common.sync")}</button>
+          <button class="primary" id="addProfessorBtn">${t("contact.addProf")}</button>
         </div>
       </div>
       <div class="panel-body">
         ${renderContactFilters(allProfessors, data.professors.length)}
         <div class="table-wrap contact-table">
           <table>
-            <thead><tr><th>优先级</th><th>导师</th><th>学校</th><th>学院/组</th><th>方向</th><th>状态</th><th>文件</th><th>操作</th></tr></thead>
+            <thead><tr><th>${t("contact.priority")}</th><th>${t("contact.professor")}</th><th>${t("contact.school")}</th><th>${t("contact.college")}</th><th>${t("contact.direction")}</th><th>${t("contact.status")}</th><th>${t("contact.files")}</th><th>${t("contact.actions")}</th></tr></thead>
             <tbody>${data.professors.map((prof, index) => renderProfessorRow(prof, index)).join("")}</tbody>
           </table>
         </div>
@@ -82,15 +84,15 @@ function renderSchoolColorDialog(rows) {
       <form method="dialog" class="dialog-card">
         <div class="dialog-head">
           <div>
-            <h3>学校配色</h3>
-            <p>已按学校官方视觉规范预设，可使用 Hex 颜色覆盖。</p>
+            <h3>${t("contact.schoolColor")}</h3>
+            <p>${t("contact.colorHint")}</p>
           </div>
-          <button value="cancel" class="icon-btn" title="关闭">×</button>
+          <button value="cancel" class="icon-btn" title="${t("common.close")}">×</button>
         </div>
         <div class="school-color-dialog-body">
           <div class="school-color-summary">
-            <span>${schools.length} 所学校</span>
-            <span>颜色格式：#RRGGBB</span>
+            <span>${t("contact.schoolCount", { n: schools.length })}</span>
+            <span>${t("contact.hexFormat")}</span>
           </div>
           ${
             schools.length
@@ -106,21 +108,21 @@ function renderSchoolColorDialog(rows) {
                             <input type="color" value="${color}" data-school-color-picker="${escapeHtml(school)}" aria-label="${escapeHtml(`${school}配色`)}" />
                             <span>
                               <strong>${escapeHtml(school)}</strong>
-                              <small>${escapeHtml(preset?.label || "自动配色")} · ${defaultSchoolColor(school)}</small>
+                              <small>${escapeHtml(preset?.label || t("contact.autoColor"))} · ${defaultSchoolColor(school)}</small>
                             </span>
                           </label>
                           <input class="school-hex-input" value="${color}" maxlength="7" spellcheck="false" data-school-hex="${escapeHtml(school)}" data-original-color="${color}" aria-label="${escapeHtml(`${school} Hex 颜色`)}" />
-                          <button class="mini school-color-reset" type="button" data-school-color-reset="${escapeHtml(school)}" ${hasCustomColor ? "" : "disabled"} title="${preset ? "恢复学校官方预设色" : "恢复自动配色"}">${preset ? "官方色" : "自动"}</button>
+                          <button class="mini school-color-reset" type="button" data-school-color-reset="${escapeHtml(school)}" ${hasCustomColor ? "" : "disabled"} title="${preset ? t("contact.restoreOfficial") : t("contact.restoreAuto")}">${preset ? t("contact.official") : t("contact.auto")}</button>
                         </div>
                       `;
                     })
                     .join("")}
                 </div>`
-              : `<p class="school-color-empty">为导师填写学校后，即可在这里设置配色。</p>`
+              : `<p class="school-color-empty">${t("contact.emptySchool")}</p>`
           }
         </div>
         <menu>
-          <button value="cancel" class="primary">完成</button>
+          <button value="cancel" class="primary">${t("common.done")}</button>
         </menu>
       </form>
     </dialog>
@@ -132,14 +134,14 @@ function renderContactFilters(rows, visibleCount) {
   const statuses = uniqueValues(rows.map((prof) => prof.status || "未联系"));
   return `
     <div class="toolbar contact-filters">
-      <p>${visibleCount} / ${rows.length} 位导师</p>
+      <p>${t("contact.profCount", { visible: visibleCount, total: rows.length })}</p>
       <div class="filter-controls">
         <select class="mini-select" data-contact-filter="school">
-          <option value="">全部学校</option>
+          <option value="">${t("contact.allSchool")}</option>
           ${schools.map((school) => `<option value="${escapeHtml(school)}" ${contactFilters.school === school ? "selected" : ""}>${escapeHtml(school)}</option>`).join("")}
         </select>
         <select class="mini-select" data-contact-filter="status">
-          <option value="">全部状态</option>
+          <option value="">${t("contact.allStatus")}</option>
           ${statuses.map((status) => `<option value="${escapeHtml(status)}" ${contactFilters.status === status ? "selected" : ""}>${escapeHtml(status)}</option>`).join("")}
         </select>
       </div>
@@ -156,12 +158,12 @@ function renderProfessorRow(prof, index) {
     <tr class="${rowClass}"${rowStyle}>
       <td><span class="program-index">${index + 1}</span></td>
       <td><strong>${escapeHtml(prof.name)}</strong></td>
-      <td>${prof.school ? `<span class="school-chip">${escapeHtml(prof.school)}</span>` : "待补充"}</td>
-      <td>${escapeHtml(prof.college || "待补充")}</td>
-      <td><div class="truncate direction" title="${escapeHtml(prof.direction)}">${escapeHtml(shortDirection(prof.direction || prof.note || "待补充"))}</div></td>
+      <td>${prof.school ? `<span class="school-chip">${escapeHtml(prof.school)}</span>` : t("common.toFill")}</td>
+      <td>${escapeHtml(prof.college || t("common.toFill"))}</td>
+      <td><div class="truncate direction" title="${escapeHtml(prof.direction)}">${escapeHtml(shortDirection(prof.direction || prof.note || t("common.toFill")))}</div></td>
       <td>${renderBadge(prof.status || "未联系")}</td>
-      <td><div class="actions"><button class="mini" ${firstLetter ? `data-open="${firstLetter.id}"` : "disabled"}>套磁信</button><button class="mini" data-show-papers="${escapeHtml(prof.name)}">相关文件(${prof.related.length})</button></div></td>
-      <td><div class="actions">${prof.id ? `<button class="mini" data-edit-prof="${prof.id}">编辑</button><button class="mini" data-move-prof="${prof.id}" data-dir="-1">↑</button><button class="mini" data-move-prof="${prof.id}" data-dir="1">↓</button><button class="mini" data-archive-prof="${prof.id}">归档</button><button class="mini danger" data-delete-prof="${prof.id}" data-prof-name="${escapeHtml(prof.name)}">删除</button>` : `<button class="mini" data-create-prof="${escapeHtml(prof.name)}">建档</button>`}</div></td>
+      <td><div class="actions"><button class="mini" ${firstLetter ? `data-open="${firstLetter.id}"` : "disabled"}>${t("contact.letter")}</button><button class="mini" data-show-papers="${escapeHtml(prof.name)}">${t("contact.related")}(${prof.related.length})</button></div></td>
+      <td><div class="actions">${prof.id ? `<button class="mini" data-edit-prof="${prof.id}">${t("common.edit")}</button><button class="mini" data-move-prof="${prof.id}" data-dir="-1">↑</button><button class="mini" data-move-prof="${prof.id}" data-dir="1">↓</button><button class="mini" data-archive-prof="${prof.id}">${t("contact.archive")}</button><button class="mini danger" data-delete-prof="${prof.id}" data-prof-name="${escapeHtml(prof.name)}">${t("common.delete")}</button>` : `<button class="mini" data-create-prof="${escapeHtml(prof.name)}">${t("contact.create")}</button>`}</div></td>
     </tr>
   `;
 }
@@ -225,7 +227,7 @@ function bindSchoolColorSettings(refresh) {
       const color = normalizeHex(input.value);
       if (!color) {
         input.classList.add("invalid");
-        toast("请输入有效的 Hex 颜色，例如 #5B7FA3");
+        toast(t("contact.toast.hex"));
         return;
       }
       input.value = color;
@@ -249,17 +251,18 @@ async function saveSchoolColor(school, value, refresh, reopenDialog = true) {
       body: JSON.stringify({ schoolColors: colors }),
     });
     const preset = officialSchoolPreset(school);
-    toast(color ? `已保存 ${school} 的配色 ${color}` : `已恢复 ${school} 的${preset ? "官方预设色" : "自动配色"}`);
+    const kind = preset ? t("contact.officialPreset") : t("contact.autoColor");
+    toast(color ? t("contact.toast.saved", { school, color }) : t("contact.toast.restored", { school, kind }));
     await refresh();
     if (reopenDialog) document.querySelector("#schoolColorDialog")?.showModal();
   } catch (error) {
-    toast(error.message || "学校配色保存失败");
+    toast(error.message || t("contact.toast.saveFail"));
   }
 }
 
 function renderUnassigned(data) {
   if (!data.unassigned.items.length) return "";
-  return `<div class="unassigned-inline"><strong>未归类资源</strong><span>${data.unassigned.items.length} 个文件待确认归属</span><button class="mini" data-show-unassigned>查看</button></div>`;
+  return `<div class="unassigned-inline"><strong>${t("contact.unassigned")}</strong><span>${t("contact.unassignedHint", { n: data.unassigned.items.length })}</span><button class="mini" data-show-unassigned>${t("common.view")}</button></div>`;
 }
 
 function bindProfessorActions(refresh) {
@@ -273,10 +276,10 @@ function bindProfessorActions(refresh) {
   document.querySelectorAll("[data-show-papers]").forEach((button) => {
     button.addEventListener("click", () => {
       const prof = state.contactData.professors.find((item) => item.name === button.dataset.showPapers);
-      openPapersDialog(`${prof.name}的相关文件`, prof.related, false, refresh);
+      openPapersDialog(t("table.relatedFiles", { name: prof.name }), prof.related, false, refresh);
     });
   });
-  document.querySelectorAll("[data-show-unassigned]").forEach((button) => button.addEventListener("click", () => openPapersDialog("未归类套磁资源", state.contactData.unassigned.items, true, refresh)));
+  document.querySelectorAll("[data-show-unassigned]").forEach((button) => button.addEventListener("click", () => openPapersDialog(t("contact.unassigned"), state.contactData.unassigned.items, true, refresh)));
   document.querySelectorAll("[data-create-prof]").forEach((button) => button.addEventListener("click", () => createProfessorRecord(button.dataset.createProf, refresh)));
   document.querySelectorAll("[data-move-prof]").forEach((button) => button.addEventListener("click", () => moveProfessor(Number(button.dataset.moveProf), Number(button.dataset.dir), refresh)));
   document.querySelectorAll("[data-archive-prof]").forEach((button) => button.addEventListener("click", () => archiveProfessor(Number(button.dataset.archiveProf), refresh)));
@@ -295,9 +298,9 @@ function bindContactFilters(refresh) {
 async function createProfessorRecord(name, refresh) {
   const row = await api("/api/professors", {
     method: "POST",
-    body: JSON.stringify({ name, status: "待补充", note: `由套磁信文件名自动识别：${name}` }),
+    body: JSON.stringify({ name, status: "待补充", note: t("contact.autoNote", { name }) }),
   });
-  toast("已建立导师记录");
+  toast(t("contact.toast.created"));
   openEditor("professors", row, refresh);
 }
 
@@ -307,15 +310,15 @@ async function moveProfessor(id, dir, refresh) {
 }
 
 async function archiveProfessor(id, refresh) {
-  if (!confirm("确定归档这位导师吗？归档后将从套磁页隐藏，可在数据库中保留记录。")) return;
+  if (!confirm(t("contact.archiveConfirm"))) return;
   await api(`/api/professors/${id}`, { method: "PATCH", body: JSON.stringify({ status: "已归档" }) });
-  toast("已归档导师");
+  toast(t("contact.toast.archived"));
   refresh();
 }
 
 async function deleteProfessor(id, name, refresh) {
-  if (!confirm(`确定删除导师记录吗？\n\n${name}\n\n这不会删除本地文件，但会清空这些文件上的导师关联。`)) return;
+  if (!confirm(t("contact.deleteConfirm", { name }))) return;
   await api(`/api/professors/${id}`, { method: "DELETE" });
-  toast("已删除导师记录");
+  toast(t("contact.toast.deleted"));
   refresh();
 }

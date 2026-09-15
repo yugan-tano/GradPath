@@ -6,8 +6,27 @@ from .dataroot import data_dir, db_path
 
 
 def connect() -> sqlite3.Connection:
-    data_dir().mkdir(exist_ok=True)
-    conn = sqlite3.connect(db_path())
+    path = db_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(str(path))
+    conn.row_factory = sqlite3.Row
+    return conn
+
+
+def connect_scene(scene_id: str) -> sqlite3.Connection:
+    """Open a specific scene's SQLite DB (used for cross-scene link resolution)."""
+    path = data_dir() / "scenes" / scene_id / "app.db"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(str(path))
+    conn.row_factory = sqlite3.Row
+    return conn
+
+
+def connect_links() -> sqlite3.Connection:
+    """Open the shared cross-scene link store (one DB for the whole data root)."""
+    path = data_dir() / "links.db"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(str(path))
     conn.row_factory = sqlite3.Row
     return conn
 

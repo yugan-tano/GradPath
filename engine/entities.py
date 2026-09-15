@@ -86,12 +86,16 @@ def update_row(table: str, row_id: int, payload: dict) -> dict:
 
 
 def delete_row(table: str, row_id: int) -> dict:
+    from .scene import active_scene_id
+
     with connect() as conn:
         row = conn.execute(f"select * from {table} where id = ?", (row_id,)).fetchone()
         conn.execute(f"delete from {table} where id = ?", (row_id,))
     from .hooks import call
+    from .links import remove_record_links
 
     call("after_delete", table, row_id, dict(row) if row else None)
+    remove_record_links(active_scene_id(), table, row_id)
     return {"ok": True}
 
 

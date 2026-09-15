@@ -21,13 +21,27 @@ from .dataroot import migrate, rollback, root_info, source_dir, writes_paused
 from .entities import app_options, backup_db, create_row, delete_row, list_table, move_row, update_row
 from .hooks import call
 from .materials import delete_material_file, get_material, resource_directory, resource_groups, scan_materials, upload_material
-from .scene import active_scene, entity_keys
+from .scene import active_scene, active_scene_id, entity_keys, list_scenes
 from .settings import avatar_response, read_settings, save_avatar, update_settings
 from .utils import is_safe_data_path, is_safe_path
 
 
 def _entity_alt() -> str:
     return "|".join(re.escape(key) for key in entity_keys())
+
+
+def switch_scene(scene_id: str) -> dict:
+    """Activate a scene package: bootstrap its schema/seeds and rescan files."""
+    from .bootstrap import bootstrap
+    from .dataroot import source_dir
+    from .materials import scan_materials
+    from .scene import set_active_scene
+
+    scene = set_active_scene(scene_id)
+    source_dir().mkdir(parents=True, exist_ok=True)
+    bootstrap()
+    scan_materials()
+    return {"ok": True, "scene": scene.get("id"), "name": scene.get("name")}
 
 
 def send_json(handler: BaseHTTPRequestHandler, payload, status: int = 200) -> None:
@@ -75,6 +89,8 @@ class Handler(BaseHTTPRequestHandler):
         try:
             if path == "/api/summary":
                 return send_json(self, self._hook_or_400("summary"))
+            if path == "/api/stats":
+                return send_json(self, self._hook_or_400("stats"))
             if path == "/api/contact-workspace":
                 return send_json(self, self._hook_or_400("contact_workspace"))
             if path == "/api/materials/groups":
@@ -92,10 +108,39 @@ class Handler(BaseHTTPRequestHandler):
                 return self.serve_avatar()
             if path == "/api/dataroot":
                 return send_json(self, root_info())
+            if path == "/api/scenes":
+                return send_json(self, {"scenes": list_scenes(), "active": active_scene_id()})
             if path == "/api/scene":
                 return send_json(self, active_scene())
+            if path == "/api/links/entities":
+                from . import links
+
+                return send_json(self, {"items": links.linkable_entities()})
+            if path == "/api/links/options":
+                from . import links
+
+                return send_json(self, links.link_options(query.get("scene")[0], query.get("entity")[0]))
+            if path == "/api/links":
+                from . import links
+
+                scene = (query.get("scene") or [active_scene_id()])[0]
+                entity = (query.get("entity") or [""])[0]
+                return send_json(self, {"items": links.get_outgoing(scene, entity, int(query.get("id")[0]))})
+            if path == "/api/links/incoming":
+                from . import links
+
+                scene = (query.get("scene") or [active_scene_id()])[0]
+                entity = (query.get("entity") or [""])[0]
+                return send_json(self, {"items": links.get_incoming(scene, entity, int(query.get("id")[0]))})
+            if path == "/api/links/board":
+                from . import links
+
+                return send_json(self, links.link_board((query.get("entity") or [""])[0]))
             if path == "/api/sop":
                 return send_json(self, sop.list_acts())
+            match = re.fullmatch(r"/api/export/([^/]+)", path)
+            if match:
+                return self.export_entity(match.group(1), query)
             match = re.fullmatch(r"/api/checklist/([^/]+)/([^/]*)", path)
             if match:
                 from . import checklist
@@ -116,6 +161,27 @@ class Handler(BaseHTTPRequestHandler):
             raise KeyError(f"当前场景未提供 {name} 能力")
         return result
 
+    def export_entity(self, key: str, query: dict) -> None:
+        from . import export
+
+        fmt = (query.get("format") or ["csv"])[0]
+        if key == "report":
+            filename, body, ctype = export.export_report()
+        elif key in entity_keys():
+            if fmt == "md":
+                filename, body, ctype = export.export_markdown(key)
+            else:
+                filename, body, ctype = export.export_csv(key)
+        else:
+            return send_json(self, {"error": "未知导出目标"}, 404)
+        data = body.encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", ctype)
+        self.send_header("Content-Disposition", f"attachment; filename*=UTF-8''{urllib.parse.quote(filename)}")
+        self.send_header("Content-Length", str(len(data)))
+        self.end_headers()
+        self.wfile.write(data)
+
     # ----- POST -----
     def do_POST(self) -> None:
         path = urllib.parse.urlparse(self.path).path
@@ -126,6 +192,21 @@ class Handler(BaseHTTPRequestHandler):
                 return send_json(self, migrate(read_body(self).get("path", "")))
             if path == "/api/dataroot/rollback":
                 return send_json(self, rollback())
+            if path == "/api/scene/switch":
+                return send_json(self, switch_scene(read_body(self).get("scene", "")))
+            if path == "/api/links":
+                from . import links
+
+                payload = read_body(self)
+                return send_json(
+                    self,
+                    links.set_links(
+                        payload.get("scene") or active_scene_id(),
+                        payload.get("entity", ""),
+                        int(payload.get("id", 0)),
+                        payload.get("links") or [],
+                    ),
+                )
             if path == "/api/materials/scan":
                 return send_json(self, scan_materials())
             if path == "/api/materials/upload":

@@ -6,20 +6,25 @@ timeline. The engine reads this config to drive CRUD, forms, and lists, so
 adding a new scene never requires touching engine code.
 
 Field types (design convention B, frozen minimal set):
-  text, textarea, number, date, select, multiselect, checkbox, file
+  text, textarea, number, date, select, multiselect, checkbox, file,
+  keyvalue (custom key/value module), links (cross-entity references)
 """
 
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
-from .dataroot import app_root
+from .dataroot import app_root, data_dir
 
 SCENES_DIR = app_root() / "scenes"
 DEFAULT_SCENE = "tuimian"
 
-FIELD_TYPES = {"text", "textarea", "number", "date", "select", "multiselect", "checkbox", "file"}
+FIELD_TYPES = {"text", "textarea", "number", "date", "select", "multiselect", "checkbox", "file", "keyvalue", "links"}
+
+# Field types that are NOT physical columns in the entity table.
+VIRTUAL_FIELD_TYPES = {"links"}
 
 _FIELD_SQL = {
     "text": "text not null default ''",
@@ -28,6 +33,7 @@ _FIELD_SQL = {
     "select": "text not null default ''",
     "multiselect": "text not null default ''",
     "file": "text not null default ''",
+    "keyvalue": "text not null default ''",
     "number": "real not null default 0",
     "checkbox": "integer not null default 0",
 }
@@ -54,10 +60,57 @@ def load_scene(scene_id: str) -> dict:
     return data
 
 
-def active_scene_id() -> str:
-    import os
+def active_scene_path() -> Path:
+    """Where the user's chosen scene id is persisted (scene-independent)."""
+    return data_dir() / "active_scene.json"
 
-    return os.environ.get("GRADPATH_SCENE", DEFAULT_SCENE)
+
+def _persisted_scene_id() -> str:
+    try:
+        data = json.loads(active_scene_path().read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return ""
+    return str(data.get("scene", "")).strip()
+
+
+def active_scene_id() -> str:
+    env = os.environ.get("GRADPATH_SCENE", "").strip()
+    if env:
+        return env
+    persisted = _persisted_scene_id()
+    if persisted and scene_path(persisted).exists():
+        return persisted
+    return DEFAULT_SCENE
+
+
+def list_scenes() -> list[dict]:
+    """Registry of installed scene packages (id / name / description)."""
+    result = []
+    for path in sorted(SCENES_DIR.glob("*/scene.json")):
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        result.append(
+            {
+                "id": data.get("id", path.parent.name),
+                "name": data.get("name", path.parent.name),
+                "nameEn": data.get("nameEn", ""),
+                "description": data.get("description", ""),
+                "descriptionEn": data.get("descriptionEn", ""),
+            }
+        )
+    return result
+
+
+def set_active_scene(scene_id: str) -> dict:
+    """Persist the active scene. Raises KeyError if the package is missing."""
+    scene_id = (scene_id or "").strip()
+    if not scene_id or not scene_path(scene_id).exists():
+        raise KeyError(f"场景包不存在：{scene_id}")
+    active_scene_path().parent.mkdir(parents=True, exist_ok=True)
+    active_scene_path().write_text(json.dumps({"scene": scene_id}, ensure_ascii=False), encoding="utf-8")
+    return load_scene(scene_id)
 
 
 def active_scene() -> dict:
@@ -94,12 +147,35 @@ def field_keys(entity_key: str) -> list[str]:
 def writable_columns(entity_key: str) -> list[str]:
     cfg = entity(entity_key) or {}
     extra = list(cfg.get("extraWritable", []))
-    return list(dict.fromkeys(field_keys(entity_key) + extra))
+    physical = [f["key"] for f in entity_fields(entity_key) if f.get("type") not in VIRTUAL_FIELD_TYPES]
+    return list(dict.fromkeys(physical + extra))
+
+
+def virtual_fields(entity_key: str) -> list[dict]:
+    """Fields with no physical column (e.g. links), handled out-of-band."""
+    return [f for f in entity_fields(entity_key) if f.get("type") in VIRTUAL_FIELD_TYPES]
+
+
+def entity_title_field(entity_key: str, scene: dict | None = None) -> str:
+    """The field used as a record's display name when cross-referenced.
+
+    Priority: explicit ``titleField`` -> ``optionField`` -> first field.
+    """
+    cfg = entity(entity_key, scene) or {}
+    if cfg.get("titleField"):
+        return cfg["titleField"]
+    if cfg.get("optionField"):
+        return cfg["optionField"]
+    fields = cfg.get("fields", [])
+    if fields:
+        return fields[0]["key"]
+    return "id"
 
 
 def search_columns(entity_key: str) -> list[str]:
     cfg = entity(entity_key) or {}
-    return list(cfg.get("search") or field_keys(entity_key))
+    physical = [f["key"] for f in entity_fields(entity_key) if f.get("type") not in VIRTUAL_FIELD_TYPES]
+    return list(cfg.get("search") or physical)
 
 
 def entity_order(entity_key: str) -> str:
@@ -112,7 +188,7 @@ def entity_columns(entity_key: str) -> list[list[str]]:
     columns = cfg.get("columns")
     if columns:
         return [[c[0], c[1]] for c in columns]
-    return [[f["key"], f.get("label", f["key"])] for f in entity_fields(entity_key)]
+    return [[f["key"], f.get("label", f["key"])] for f in entity_fields(entity_key) if f.get("type") not in VIRTUAL_FIELD_TYPES]
 
 
 def entity_filter_field(entity_key: str) -> str | None:
@@ -141,6 +217,18 @@ def scene_acts(scene: dict | None = None) -> list[dict]:
 def scene_templates(scene: dict | None = None) -> list[dict]:
     data = scene or active_scene()
     return data.get("templates", [])
+
+
+def scene_pages(scene: dict | None = None) -> list[dict]:
+    """Navigation pages declared by the scene (type + entity + labels)."""
+    data = scene or active_scene()
+    return data.get("pages", [])
+
+
+def scene_materials_dir(scene: dict | None = None) -> str:
+    """The material folder name this scene scans (defaults to the scene id)."""
+    data = scene or active_scene()
+    return data.get("materialsDir") or data.get("id") or "资料"
 
 
 def entity_system_columns(entity_key: str) -> dict[str, str]:
@@ -183,12 +271,13 @@ def ensure_entity_table(conn, entity_key: str) -> None:
     """
     existing = {row["name"] for row in conn.execute("pragma table_info(%s)" % entity_key)}
     cfg = entity(entity_key) or {}
-    field_defs = {f["key"]: f for f in cfg.get("fields", [])}
+    field_defs = {f["key"]: f for f in cfg.get("fields", []) if f.get("type") not in VIRTUAL_FIELD_TYPES}
+    physical_fields = [f for f in cfg.get("fields", []) if f.get("type") not in VIRTUAL_FIELD_TYPES]
     system_cols = entity_system_columns(entity_key)
 
     if "id" not in existing:
         parts = ["id integer primary key autoincrement"]
-        for field in cfg.get("fields", []):
+        for field in physical_fields:
             parts.append(f"{field['key']} {_column_sql(field['key'], field)}")
         for col in cfg.get("extraWritable", []):
             if col not in field_defs:
@@ -199,7 +288,7 @@ def ensure_entity_table(conn, entity_key: str) -> None:
         conn.execute(f"create table if not exists {entity_key} ({', '.join(parts)})")
         return
 
-    for field in cfg.get("fields", []):
+    for field in physical_fields:
         key = field["key"]
         if key not in existing:
             conn.execute(f"alter table {entity_key} add column {key} {_column_sql(key, field)}")

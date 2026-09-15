@@ -1,0 +1,196 @@
+{
+  "id": "study",
+  "name": "学习 SOP",
+  "nameEn": "Study",
+  "description": "研究生课程学习：选课、课堂、考试、成绩复盘",
+  "descriptionEn": "Graduate coursework: course selection, lectures, exams, grade review.",
+  "version": "1.0.0",
+  "materialsDir": "学习资料",
+  "settings": {
+    "brandTitle": "GradPath",
+    "workspaceName": "学习管理 · 本地工作台",
+    "avatarText": "",
+    "avatarMode": "text",
+    "motto": "学而时习，温故知新",
+    "theme": "default",
+    "schoolColors": "{}",
+    "github": "https://github.com/yugan-tano/GradPath"
+  },
+  "pages": [
+    { "id": "dashboard", "type": "dashboard", "title": "总览", "titleEn": "Overview" },
+    { "id": "sop", "type": "sop", "title": "学习 SOP", "titleEn": "Study SOP" },
+    { "id": "stats", "type": "stats", "title": "绩点统计", "titleEn": "GPA & Credits" },
+    { "id": "courses", "type": "table", "entity": "courses", "title": "课程", "titleEn": "Courses" },
+    { "id": "exams", "type": "table", "entity": "exams", "title": "考试", "titleEn": "Exams" },
+    { "id": "notes", "type": "table", "entity": "notes", "title": "笔记", "titleEn": "Notes" },
+    { "id": "resources", "type": "resources", "title": "资料", "titleEn": "Resources" },
+    { "id": "tasks", "type": "table", "entity": "tasks", "title": "待办", "titleEn": "Tasks" }
+  ],
+  "entities": {
+    "materials": {
+      "label": "资料",
+      "endpoint": "/api/materials",
+      "extraWritable": ["stage", "resource_kind"],
+      "columns": [
+        ["name", "名称"],
+        ["category", "归类"],
+        ["note", "备注"]
+      ],
+      "systemColumns": {
+        "path": "text not null unique",
+        "ext": "text not null default ''",
+        "size": "integer not null default 0",
+        "mtime": "text not null default ''",
+        "relative_path": "text not null default ''",
+        "folder": "text not null default ''",
+        "missing": "integer not null default 0"
+      },
+      "fields": [
+        { "key": "name", "label": "名称", "type": "text", "required": true },
+        { "key": "category", "label": "归类", "type": "select", "options": ["教材", "课件", "笔记", "作业", "考试", "论文", "参考"] },
+        { "key": "related_professor", "label": "关联", "type": "text" },
+        { "key": "related_program", "label": "关联课程", "type": "text" },
+        { "key": "note", "label": "备注", "type": "textarea", "full": true },
+        { "key": "pinned", "label": "置顶", "type": "checkbox" },
+        { "key": "links", "label": "关联", "type": "links" }
+      ]
+    },
+    "courses": {
+      "label": "课程",
+      "endpoint": "/api/courses",
+      "optionField": "name",
+      "extraWritable": [],
+      "search": ["name", "semester", "instructor", "status", "note"],
+      "order": "id desc",
+      "filterField": "status",
+      "columns": [
+        ["name", "课程名"],
+        ["semester", "学期"],
+        ["credits", "学分"],
+        ["score", "成绩"],
+        ["difficulty", "难度"],
+        ["status", "状态"],
+        ["note", "备注"]
+      ],
+      "fields": [
+        { "key": "name", "label": "课程名", "type": "text", "required": true },
+        { "key": "semester", "label": "学期", "type": "text" },
+        { "key": "instructor", "label": "任课教师", "type": "text" },
+        { "key": "credits", "label": "学分", "type": "number" },
+        { "key": "score", "label": "成绩", "type": "number" },
+        { "key": "difficulty", "label": "难度", "type": "select", "options": ["低", "中", "高"], "badge": true },
+        { "key": "status", "label": "状态", "type": "select", "options": ["选课中", "进行中", "已结课", "挂科", "重修"], "badge": true },
+        { "key": "note", "label": "备注", "type": "textarea", "full": true },
+        { "key": "links", "label": "关联", "type": "links", "targets": ["courses", "exams", "notes", "tasks", "materials", "research.projects", "research.papers"] }
+      ]
+    },
+    "exams": {
+      "label": "考试",
+      "endpoint": "/api/exams",
+      "extraWritable": [],
+      "search": ["title", "course", "type", "status", "note"],
+      "order": "case status when '已完成' then 1 else 0 end, due_date = '', due_date asc, id desc",
+      "filterField": "status",
+      "columns": [
+        ["title", "考试/作业"],
+        ["course", "课程"],
+        ["type", "类型"],
+        ["due_date", "时间"],
+        ["status", "状态"],
+        ["note", "备注"]
+      ],
+      "fields": [
+        { "key": "title", "label": "考试/作业", "type": "text", "required": true, "full": true },
+        { "key": "course", "label": "课程", "type": "select", "optionSource": "courses", "allowEmpty": true },
+        { "key": "type", "label": "类型", "type": "select", "options": ["期中", "期末", "平时作业", "大作业", "测验", "其他"] },
+        { "key": "due_date", "label": "时间", "type": "date" },
+        { "key": "status", "label": "状态", "type": "select", "options": ["待复习", "复习中", "已完成", "缺考"], "badge": true },
+        { "key": "note", "label": "备注", "type": "textarea", "full": true },
+        { "key": "links", "label": "关联", "type": "links" }
+      ]
+    },
+    "notes": {
+      "label": "笔记",
+      "endpoint": "/api/notes",
+      "extraWritable": [],
+      "search": ["topic", "course", "content", "tag"],
+      "order": "id desc",
+      "columns": [
+        ["topic", "主题"],
+        ["course", "课程"],
+        ["content", "要点"],
+        ["tag", "标签"]
+      ],
+      "fields": [
+        { "key": "topic", "label": "主题", "type": "text", "required": true },
+        { "key": "course", "label": "课程", "type": "select", "optionSource": "courses", "allowEmpty": true },
+        { "key": "content", "label": "要点", "type": "textarea", "full": true },
+        { "key": "tag", "label": "标签", "type": "text" },
+        { "key": "links", "label": "关联", "type": "links" }
+      ]
+    },
+    "tasks": {
+      "label": "待办",
+      "endpoint": "/api/tasks",
+      "extraWritable": [],
+      "search": ["title", "scope", "priority", "status", "note"],
+      "order": "case status when '已完成' then 1 else 0 end, due_date = '', due_date asc, id desc",
+      "columns": [
+        ["title", "事项"],
+        ["scope", "范围"],
+        ["due_date", "截止"],
+        ["priority", "优先级"],
+        ["status", "状态"],
+        ["note", "备注"]
+      ],
+      "fields": [
+        { "key": "title", "label": "事项", "type": "text", "required": true, "full": true },
+        { "key": "scope", "label": "范围", "type": "text" },
+        { "key": "due_date", "label": "截止日期", "type": "date" },
+        { "key": "priority", "label": "优先级", "type": "select", "options": ["高", "中", "低"], "badge": true, "hotValues": ["高"] },
+        { "key": "status", "label": "状态", "type": "select", "options": ["待办", "进行中", "已完成", "搁置"], "badge": true },
+        { "key": "note", "label": "备注", "type": "textarea", "full": true },
+        { "key": "links", "label": "关联", "type": "links" }
+      ]
+    }
+  },
+  "seeds": {
+    "tasks": [
+      { "title": "确认本学期培养方案与选课清单", "scope": "选课", "due_date": "", "priority": "高", "status": "待办", "note": "对照培养方案核对学分要求。" },
+      { "title": "整理每门课的教学大纲与考核方式", "scope": "课堂", "due_date": "", "priority": "中", "status": "待办", "note": "记录平时成绩占比与考试形式。" },
+      { "title": "制定期中/期末复习时间表", "scope": "备考", "due_date": "", "priority": "高", "status": "待办", "note": "为每门考试预留充足复习时间。" }
+    ]
+  },
+  "checklists": {
+    "study_plan": {
+      "owner": "global",
+      "items": ["研读培养方案与学分要求", "确定本学期选课清单", "排定课程时间表", "准备教材与参考资料"],
+      "itemsEn": ["Review the degree plan & credit requirements", "Finalize this semester's course list", "Schedule the weekly timetable", "Prepare textbooks & references"]
+    },
+    "study_follow": {
+      "owner": "global",
+      "items": ["整理每堂课笔记", "按时提交作业", "难点及时请教老师/同学", "参与答疑或讨论"],
+      "itemsEn": ["Organize notes after each lecture", "Submit assignments on time", "Ask about difficult points promptly", "Attend office hours / discussions"]
+    },
+    "study_review": {
+      "owner": "global",
+      "items": ["梳理考试范围与重点", "复习重点难点", "完成真题与习题演练", "考前模拟自测"],
+      "itemsEn": ["Outline exam scope & key points", "Review key & difficult topics", "Work through past papers & exercises", "Take a timed mock test"]
+    }
+  },
+  "acts": [
+    {
+      "id": "study",
+      "name": "学期学习 SOP",
+      "nameEn": "Semester Study SOP",
+      "stages": [
+        { "id": "s_plan", "name": "选课与规划", "nameEn": "Course Selection & Planning", "checklist": "study_plan", "exit": { "op": "checklist", "checklist": "study_plan", "target": 1.0 } },
+        { "id": "s_follow", "name": "课堂跟进", "nameEn": "Lecture Follow-up", "checklist": "study_follow", "enter": { "op": "stageDone", "stage": "s_plan" }, "exit": { "op": "checklist", "checklist": "study_follow", "target": 1.0 } },
+        { "id": "s_review", "name": "复习备考", "nameEn": "Review & Exam Prep", "checklist": "study_review", "enter": { "op": "stageDone", "stage": "s_follow" }, "exit": { "op": "checklist", "checklist": "study_review", "target": 1.0 } },
+        { "id": "s_assess", "name": "成绩复盘", "nameEn": "Grade Review", "enter": { "op": "stageDone", "stage": "s_review" } }
+      ]
+    }
+  ],
+  "templates": [],
+  "timeline": []
+}

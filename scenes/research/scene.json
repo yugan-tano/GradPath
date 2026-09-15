@@ -1,0 +1,231 @@
+{
+  "id": "research",
+  "name": "科研 SOP",
+  "nameEn": "Research",
+  "description": "科研项目全流程：选题、设计、实验、论文、投稿",
+  "descriptionEn": "Research project lifecycle: topic, design, experiments, writing, publishing.",
+  "version": "1.0.0",
+  "materialsDir": "科研资料",
+  "settings": {
+    "brandTitle": "GradPath",
+    "workspaceName": "科研管理 · 本地工作台",
+    "avatarText": "",
+    "avatarMode": "text",
+    "motto": "格物致知，研精覃思",
+    "theme": "default",
+    "schoolColors": "{}",
+    "github": "https://github.com/yugan-tano/GradPath"
+  },
+  "pages": [
+    { "id": "dashboard", "type": "dashboard", "title": "总览", "titleEn": "Overview" },
+    { "id": "sop", "type": "sop", "title": "科研 SOP", "titleEn": "Research SOP" },
+    { "id": "board", "type": "aggregate", "entity": "projects", "title": "项目聚合", "titleEn": "Project Board" },
+    { "id": "projects", "type": "table", "entity": "projects", "title": "项目", "titleEn": "Projects" },
+    { "id": "papers", "type": "table", "entity": "papers", "title": "论文", "titleEn": "Papers" },
+    { "id": "experiments", "type": "table", "entity": "experiments", "title": "实验", "titleEn": "Experiments" },
+    { "id": "meetings", "type": "table", "entity": "meetings", "title": "组会", "titleEn": "Meetings" },
+    { "id": "resources", "type": "resources", "title": "资料", "titleEn": "Resources" },
+    { "id": "tasks", "type": "table", "entity": "tasks", "title": "待办", "titleEn": "Tasks" }
+  ],
+  "entities": {
+    "materials": {
+      "label": "资料",
+      "endpoint": "/api/materials",
+      "extraWritable": ["stage", "resource_kind"],
+      "columns": [
+        ["name", "名称"],
+        ["category", "归类"],
+        ["note", "备注"]
+      ],
+      "systemColumns": {
+        "path": "text not null unique",
+        "ext": "text not null default ''",
+        "size": "integer not null default 0",
+        "mtime": "text not null default ''",
+        "relative_path": "text not null default ''",
+        "folder": "text not null default ''",
+        "missing": "integer not null default 0"
+      },
+      "fields": [
+        { "key": "name", "label": "名称", "type": "text", "required": true },
+        { "key": "category", "label": "归类", "type": "select", "options": ["文献", "数据", "代码", "实验记录", "论文", "汇报", "参考"] },
+        { "key": "related_professor", "label": "关联", "type": "text" },
+        { "key": "related_program", "label": "关联项目", "type": "text" },
+        { "key": "note", "label": "备注", "type": "textarea", "full": true },
+        { "key": "pinned", "label": "置顶", "type": "checkbox" },
+        { "key": "links", "label": "关联", "type": "links" }
+      ]
+    },
+    "projects": {
+      "label": "项目",
+      "endpoint": "/api/projects",
+      "optionField": "name",
+      "extraWritable": [],
+      "search": ["name", "topic", "advisor", "status", "note"],
+      "order": "case status when '进行中' then 0 else 1 end, id desc",
+      "filterField": "status",
+      "columns": [
+        ["name", "项目名"],
+        ["topic", "方向"],
+        ["advisor", "导师"],
+        ["start_date", "开始"],
+        ["end_date", "结束"],
+        ["status", "状态"],
+        ["note", "备注"]
+      ],
+      "fields": [
+        { "key": "name", "label": "项目名", "type": "text", "required": true },
+        { "key": "topic", "label": "方向", "type": "text" },
+        { "key": "advisor", "label": "导师", "type": "text" },
+        { "key": "start_date", "label": "开始日期", "type": "date" },
+        { "key": "end_date", "label": "结束日期", "type": "date" },
+        { "key": "status", "label": "状态", "type": "select", "options": ["选题中", "进行中", "停滞", "已结题", "已放弃"], "badge": true },
+        { "key": "note", "label": "备注", "type": "textarea", "full": true },
+        { "key": "links", "label": "关联", "type": "links" }
+      ]
+    },
+    "papers": {
+      "label": "论文",
+      "endpoint": "/api/papers",
+      "extraWritable": [],
+      "search": ["title", "project", "venue", "status", "note"],
+      "order": "id desc",
+      "filterField": "status",
+      "columns": [
+        ["title", "标题"],
+        ["project", "项目"],
+        ["venue", "期刊/会议"],
+        ["status", "状态"],
+        ["submit_date", "提交"],
+        ["note", "备注"]
+      ],
+      "fields": [
+        { "key": "title", "label": "标题", "type": "text", "required": true, "full": true },
+        { "key": "project", "label": "项目", "type": "select", "optionSource": "projects", "allowEmpty": true },
+        { "key": "venue", "label": "期刊/会议", "type": "text" },
+        { "key": "status", "label": "状态", "type": "select", "options": ["构思中", "撰写中", "投稿中", "审稿中", "修改中", "已录用", "已发表", "被拒"], "badge": true },
+        { "key": "submit_date", "label": "提交日期", "type": "date" },
+        { "key": "note", "label": "备注", "type": "textarea", "full": true },
+        { "key": "links", "label": "关联", "type": "links" }
+      ]
+    },
+    "experiments": {
+      "label": "实验",
+      "endpoint": "/api/experiments",
+      "extraWritable": [],
+      "search": ["title", "project", "result", "status", "note", "variables", "params"],
+      "order": "id desc",
+      "filterField": "status",
+      "columns": [
+        ["title", "实验"],
+        ["project", "项目"],
+        ["attempt", "次数"],
+        ["date", "日期"],
+        ["status", "状态"],
+        ["result", "结果"],
+        ["note", "备注"]
+      ],
+      "fields": [
+        { "key": "title", "label": "实验", "type": "text", "required": true, "full": true },
+        { "key": "project", "label": "项目", "type": "select", "optionSource": "projects", "allowEmpty": true },
+        { "key": "attempt", "label": "实验次数", "type": "number" },
+        { "key": "date", "label": "日期", "type": "date" },
+        { "key": "status", "label": "状态", "type": "select", "options": ["计划中", "进行中", "已完成", "失败", "暂停"], "badge": true },
+        { "key": "params", "label": "参数调整", "type": "keyvalue" },
+        { "key": "variables", "label": "变量", "type": "keyvalue" },
+        { "key": "result", "label": "结果", "type": "textarea", "full": true },
+        { "key": "note", "label": "备注", "type": "textarea", "full": true },
+        { "key": "links", "label": "关联", "type": "links" }
+      ]
+    },
+    "meetings": {
+      "label": "组会",
+      "endpoint": "/api/meetings",
+      "extraWritable": [],
+      "search": ["topic", "date", "status", "note"],
+      "order": "date desc, id desc",
+      "columns": [
+        ["topic", "主题"],
+        ["date", "日期"],
+        ["status", "状态"],
+        ["note", "备注"]
+      ],
+      "fields": [
+        { "key": "topic", "label": "主题", "type": "text", "required": true },
+        { "key": "date", "label": "日期", "type": "date" },
+        { "key": "status", "label": "状态", "type": "select", "options": ["待开", "已开", "已总结"], "badge": true },
+        { "key": "note", "label": "备注", "type": "textarea", "full": true },
+        { "key": "links", "label": "关联", "type": "links" }
+      ]
+    },
+    "tasks": {
+      "label": "待办",
+      "endpoint": "/api/tasks",
+      "extraWritable": [],
+      "search": ["title", "scope", "priority", "status", "note"],
+      "order": "case status when '已完成' then 1 else 0 end, due_date = '', due_date asc, id desc",
+      "columns": [
+        ["title", "事项"],
+        ["scope", "范围"],
+        ["due_date", "截止"],
+        ["priority", "优先级"],
+        ["status", "状态"],
+        ["note", "备注"]
+      ],
+      "fields": [
+        { "key": "title", "label": "事项", "type": "text", "required": true, "full": true },
+        { "key": "scope", "label": "范围", "type": "text" },
+        { "key": "due_date", "label": "截止日期", "type": "date" },
+        { "key": "priority", "label": "优先级", "type": "select", "options": ["高", "中", "低"], "badge": true, "hotValues": ["高"] },
+        { "key": "status", "label": "状态", "type": "select", "options": ["待办", "进行中", "已完成", "搁置"], "badge": true },
+        { "key": "note", "label": "备注", "type": "textarea", "full": true },
+        { "key": "links", "label": "关联", "type": "links" }
+      ]
+    }
+  },
+  "seeds": {
+    "tasks": [
+      { "title": "完成选题调研并确定研究方向", "scope": "选题", "due_date": "", "priority": "高", "status": "待办", "note": "阅读相关领域综述，与导师讨论。" },
+      { "title": "设计实验方案与技术路线", "scope": "设计", "due_date": "", "priority": "高", "status": "待办", "note": "明确方法、数据与评价指标。" },
+      { "title": "整理近期组会汇报 PPT", "scope": "组会", "due_date": "", "priority": "中", "status": "待办", "note": "同步本周进展与下周计划。" }
+    ]
+  },
+  "checklists": {
+    "research_topic": {
+      "owner": "global",
+      "items": ["阅读领域综述与关键论文", "梳理研究空白与创新点", "与导师确认选题", "明确研究问题与目标"],
+      "itemsEn": ["Read surveys & key papers", "Identify research gaps & novelty", "Confirm the topic with the advisor", "Clarify the research question & goals"]
+    },
+    "research_design": {
+      "owner": "global",
+      "items": ["确定研究方法与技术路线", "明确数据来源与采集方案", "设计实验与评价指标", "编写研究计划/开题材料"],
+      "itemsEn": ["Define the method & technical roadmap", "Specify data sources & collection", "Design experiments & metrics", "Draft the research proposal"]
+    },
+    "research_exec": {
+      "owner": "global",
+      "items": ["完成实验/原型实现", "记录实验数据与过程", "分析结果并验证假设", "迭代优化方案"],
+      "itemsEn": ["Run experiments / build the prototype", "Log data & procedures", "Analyze results & validate hypotheses", "Iterate and refine"]
+    },
+    "research_write": {
+      "owner": "global",
+      "items": ["搭建论文框架与大纲", "完成初稿撰写", "图表与实验补充", "多轮修改与润色"],
+      "itemsEn": ["Build the paper outline", "Complete the first draft", "Finalize figures & experiments", "Revise & polish"]
+    }
+  },
+  "acts": [
+    {
+      "id": "research",
+      "name": "科研项目 SOP",
+      "nameEn": "Research Project SOP",
+      "stages": [
+        { "id": "r_topic", "name": "选题调研", "nameEn": "Topic Survey", "checklist": "research_topic", "exit": { "op": "checklist", "checklist": "research_topic", "target": 1.0 } },
+        { "id": "r_design", "name": "方案设计", "nameEn": "Design", "checklist": "research_design", "enter": { "op": "stageDone", "stage": "r_topic" }, "exit": { "op": "checklist", "checklist": "research_design", "target": 1.0 } },
+        { "id": "r_exec", "name": "实验与实现", "nameEn": "Experiments", "checklist": "research_exec", "enter": { "op": "stageDone", "stage": "r_design" }, "exit": { "op": "checklist", "checklist": "research_exec", "target": 1.0 } },
+        { "id": "r_write", "name": "论文撰写", "nameEn": "Writing", "checklist": "research_write", "enter": { "op": "stageDone", "stage": "r_exec" }, "exit": { "op": "checklist", "checklist": "research_write", "target": 1.0 } },
+        { "id": "r_publish", "name": "投稿发表", "nameEn": "Submission", "enter": { "op": "stageDone", "stage": "r_write" } }
+      ]
+    }
+  ],
+  "templates": [],
+  "timeline": []
+}

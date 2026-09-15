@@ -1,9 +1,22 @@
 from __future__ import annotations
 
+import shutil
+
 from .db import init_db
 from .hooks import call
 from .scene import ensure_scene_entities, scene_seeds
 from .utils import now_text
+
+
+def _migrate_legacy_db() -> None:
+    """Move a pre-multi-scene ``data/app.db`` into the default scene's slot."""
+    from .dataroot import data_dir
+
+    legacy = data_dir() / "app.db"
+    target = data_dir() / "scenes" / "tuimian" / "app.db"
+    if legacy.exists() and not target.exists():
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.move(str(legacy), str(target))
 
 
 def _apply_seeds() -> None:
@@ -27,7 +40,11 @@ def _apply_seeds() -> None:
 
 
 def bootstrap() -> None:
+    _migrate_legacy_db()
     init_db()
+    from .links import init_links
+
+    init_links()
     ensure_scene_entities()
     _apply_seeds()
     call("bootstrap")

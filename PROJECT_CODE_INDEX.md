@@ -75,13 +75,14 @@ start.bat / launcher.ps1 / python app.py
   - `_app_data_dir()`：系统应用数据目录（Windows `%LOCALAPPDATA%\gradpath\`，类 Unix `~/.config/gradpath/`）。
   - `current_data_root()`：解析当前数据根，读锚点 `data_root.json`，无锚点时回退到代码根。
   - `data_dir()` / `source_dir()` / `state_dir()` / `db_path()`：数据子目录与 SQLite 路径。
-- 六步迁移 `migrate()`：暂停写入 → 快照 → 创建并验证新位置 → 复制并校验 → 原子切换锚点 → 保留旧目录。`rollback()` 仅重指锚点。
+- **每场景数据隔离**：`db_path()` 返回 `data/scenes/<场景id>/app.db`，`source_dir()` 返回场景声明的资料目录（`materialsDir`），各场景数据互不串扰。
+- 六步迁移 `migrate()`：暂停写入 → 快照 → 创建并验证新位置 → 复制并校验 → 原子切换锚点 → 保留旧目录。`rollback()` 仅重指锚点。`_data_subdirs()` 动态纳入所有场景的资料目录。
 - `writes_paused()`：迁移期间标记，HTTP 处理器据此拒绝写入。
 - `root_info()`：当前根目录与迁移历史。
 
 ### `engine/db.py`
 
-- `connect()`：创建数据目录、连接 `data/app.db` 并启用字典式行访问。
+- `connect()`：创建场景库目录、连接 `data/scenes/<场景id>/app.db` 并启用字典式行访问。
 - `ensure_column()`：为旧数据库补加缺失列。
 - `init_db()`：**只创建引擎自身的三张表** `settings`、`checklist_items`、`stage_state`。
 - 实体表（院校/导师/文件/待办/面试题）**不在此硬编码**，由 `engine/scene.py` 依据 `scene.json` 创建。这是引擎/场景分离的核心。
@@ -89,13 +90,22 @@ start.bat / launcher.ps1 / python app.py
 ### `engine/scene.py`
 
 - 场景配置加载器：从 `scenes/<id>/scene.json` 读取并缓存。
-- `active_scene_id()` / `active_scene()`：读取环境变量 `GRADPATH_SCENE`（默认 `tuimian`）并加载场景。
+- `active_scene_id()` / `active_scene()`：解析顺序为环境变量 `GRADPATH_SCENE` → 持久化选择 `data/active_scene.json` → 默认 `tuimian`。
+- `list_scenes()`：场景注册表，扫描 `scenes/*/scene.json` 返回 id / 名称 / 描述。
+- `set_active_scene()`：校验并持久化用户选择的场景。
+- `scene_pages()` / `scene_materials_dir()`：场景声明的导航页与资料目录。
 - `entities()` / `entity()` / `entity_keys()` / `entity_fields()` / `field_keys()`：实体与字段访问。
 - `writable_columns()` / `search_columns()` / `entity_order()` / `entity_columns()` / `entity_filter_field()`：CRUD 与列表所需元数据。
 - `scene_settings()` / `scene_seeds()` / `scene_acts()` / `scene_templates()`：设置默认值、种子数据、幕-阶段树、模板。
 - `entity_system_columns()`：引擎管理的系统列（如 `materials.path` 唯一索引）。
 - `ensure_entity_table()` / `ensure_scene_entities()`：**按场景配置建表/补列**（幂等，改 JSON 即改 schema，不丢行）。
 - `validate_scene()`：字段类型、key、select 选项等校验。
+
+### `engine/export.py`
+
+- `export_csv()` / `export_markdown()`：按实体导出为 CSV（含 UTF-8 BOM，Excel 友好）或 Markdown 表格。
+- `export_report()`：跨全部实体生成一份合并的 Markdown 数据报表。
+- 列与排序均来自 `scene.json` 的 `columns` 与 `order`，加场景不改代码。
 
 ### `engine/entities.py`
 
@@ -149,10 +159,11 @@ start.bat / launcher.ps1 / python app.py
 - `send_json()`：发送 UTF-8 JSON 响应。
 - `read_body()`：读取 JSON 请求体。
 - `Handler`：HTTP 请求处理类。
-  - `do_GET()`：`summary`/`contact-workspace`（走场景钩子）、`sop`、`checklist`、`options`、`scene`、`settings`、`dataroot`、通用列表、文件预览和静态文件。
-  - `do_POST()`：迁移/回滚、扫描、上传、备份、头像、SOP 阶段流转、排序和通用新增。
+  - `do_GET()`：`summary`/`contact-workspace`（走场景钩子）、`sop`、`checklist`、`options`、`scene`、`scenes`（场景注册表）、`settings`、`dataroot`、`export`（CSV/Markdown/报表下载）、通用列表、文件预览和静态文件。
+  - `do_POST()`：`scene/switch`（场景切换）、迁移/回滚、扫描、上传、备份、头像、SOP 阶段流转、排序和通用新增。
   - `do_PATCH()`：设置、清单勾选、通用记录更新。
   - `do_DELETE()`：真实文件、清单项、通用记录删除。
+- `switch_scene()`：切换场景 = 持久化选择 → 建目录 → `bootstrap()` 建表/种子 → 重扫资料。
 - `_hook_or_400()`：调用场景钩子，场景未提供时返回 400。
 - `main()` / `create_server()`：启动摘要、端口回退、后台同步、多线程服务。
 - `background_material_sync()`：后台扫描资料并输出同步摘要。
@@ -165,13 +176,13 @@ start.bat / launcher.ps1 / python app.py
 
 ## 4. 场景包 `scenes/`
 
-### `scenes/__init__.py` / `scenes/tuimian/__init__.py`
+### `scenes/__init__.py` / `scenes/<id>/__init__.py`
 
 - 场景包标识。
 
 ### `scenes/tuimian/scene.json`
 
-- 推免场景的声明式配置：`settings`（品牌/主题默认值）、`entities`（五个实体字段 + 系统列 + 排序/搜索/筛选）、`seeds`（默认待办与面试题）、`checklists`（面试三清单）、`acts`（推免面试 SOP 幕-阶段树）。
+- 推免场景的声明式配置：`settings`（品牌/主题默认值）、`pages`（导航页：总览/SOP/套磁/资源/院校/待办/面试题）、`entities`（五个实体字段 + 系统列 + 排序/搜索/筛选）、`seeds`、`checklists`、`acts`（推免面试 SOP 幕-阶段树）。
 - 加新场景 = 新建 `scenes/<id>/` 目录并写 `scene.json`，不改引擎。
 
 ### `scenes/tuimian/hooks.py`
@@ -179,21 +190,30 @@ start.bat / launcher.ps1 / python app.py
 - 推免场景的业务钩子，承载所有推免特有逻辑：
   - `classify_file()` / `infer_related_professor()` / `clean_professor_name()`：文件分类与导师关联。
   - `contact_workspace()`：套磁页聚合（导师合并、套磁信/论文分组、未归类资源）。
-  - `summary()`：总览统计（数量、比例、状态分布、近期内容）。
+  - `summary()`：总览统计（返回通用 `metrics` + `charts`）。
   - `resource_groups()` / `material_actions()`：分组与预览操作。
   - `after_scan()` / `after_delete()` / `bootstrap()`：扫描后补建导师、删除级联、启动归一化。
+
+### 其他场景包
+
+- `scenes/study/`：学习场景（课程/考试/笔记 + 学期学习 SOP）。
+- `scenes/research/`：科研场景（项目/论文/实验/组会 + 科研项目 SOP）。
+- `scenes/phd/`：申博场景（院校/导师/申请 + 申博 SOP + 套磁页）。
+- 三个场景均提供 `scene.json`（含 `pages` 与双语内容）与 `hooks.py`（`classify_file`、`summary`，申博另有 `contact_workspace` 等）。
 
 ## 5. 前端 `web/`
 
 ### `web/index.html`
 
-- 单页应用 HTML 壳：顶栏（品牌 + 搜索 + 操作）、横向导航、Toast、主内容容器、通用编辑弹窗、文件弹窗和设置弹窗。
+- 单页应用 HTML 壳：顶栏（品牌 + 搜索 + 暗色/语言切换 + 操作）、横向导航、Toast、主内容容器、通用编辑弹窗、文件弹窗和设置弹窗。
 - 设置项（品牌、头像、首页文字、主题）和脚本/样式入口都在这里。
+- 静态文案以 `data-i18n` / `data-i18n-placeholder` / `data-i18n-title` 标注，由 `i18n.js` 统一翻译。
 
 ### `web/style.css`
 
 - 全站样式和主题变量。
 - 文件开头 `:root`：默认“青野暖阳”配色（青绿 + 琥珀）；后续 `body[data-theme=...]`：其他可选主题。
+- `body[data-dark="true"]`：暗色模式，覆盖所有主题的颜色变量，并额外适配徽章与文件图标配色。
 - 主要样式区：顶栏/横向导航、面板/表格、院校列表、徽章/按钮、套磁表格与学校配色、逐层资源浏览、文件图标、总览数据卡与饼图、SOP 阶段看板、弹窗和响应式布局。
 
 ### `web/app.js`
@@ -205,10 +225,11 @@ start.bat / launcher.ps1 / python app.py
 ### `web/js/main.js`
 
 - 前端总入口和页面路由。
-- `render()`：根据 `state.page` 调用对应页面渲染器（dashboard / sop / contact / resources / 通用 table）。
+- `render()`：根据 `state.page` 在场景的 `pages` 中查找页面，按 `type` 分发到 dashboard / sop / contact / resources / 通用 table 渲染器。
+- `loadScenes()` / `switchScene()`：加载场景注册表、渲染场景切换器、切换场景并重载设置与场景配置。
 - `bindCommonActions()`：统一绑定跳转、打开文件/文件夹、删除和资料编辑。
 - `scanMaterials()` / `backupData()`：触发资料扫描与数据库备份。
-- 文件末尾绑定侧栏按钮、搜索防抖和全局自定义事件，加载设置并首次渲染。
+- 文件末尾绑定扫描/备份/设置/暗色切换/语言切换按钮、搜索防抖和全局自定义事件，加载设置并首次渲染。
 
 ### `web/js/api.js`
 
@@ -217,8 +238,18 @@ start.bat / launcher.ps1 / python app.py
 
 ### `web/js/state.js`
 
-- `state`：当前页面、搜索词、缓存数据、资源路径、选项、设置和场景等共享状态。
-- `pages`：侧栏七个页面的 ID、中文标题和图标文字（含「面试 SOP」）。
+- `state`：当前页面、搜索词、缓存数据、资源路径、选项、设置、场景、场景列表与当前场景 ID 等共享状态。
+- `scenePages()` / `currentPage()`：从 `state.scene.pages` 取当前场景的导航页与当前页配置（场景驱动，不再硬编码）。
+
+### `web/js/i18n.js`
+
+- 界面文案中英国际化：`DICT`（文案词典）、`LABELS`（scene.json 实体/字段/列标签对照）。
+- `t()` / `label()`：按当前语言取文案；`initI18n()` / `setLang()` / `applyStatic()`：初始化、切换并刷新静态 HTML 上的 `data-i18n` 标注。
+
+### `web/js/appearance.js`
+
+- 暗色模式：`initAppearance()` / `toggleDark()` / `renderDarkToggle()`，切换 `body[data-dark]` 并持久化到 localStorage。
+- `renderLangToggle()`：同步顶栏语言切换按钮的文案与提示。
 
 ### `web/js/scene.js`
 
@@ -232,7 +263,8 @@ start.bat / launcher.ps1 / python app.py
 
 ### `web/js/ui.js`
 
-- 通用界面组件和弹窗逻辑：`toast`、`loadSettings`/`applySettings`、`renderNav`、`renderBadge`、`openEditor`/`renderField`/`collectForm`、`openSettings` 等。
+- 通用界面组件和弹窗逻辑：`toast`、`loadSettings`/`applySettings`、`renderNav`、`renderBadge`、`renderSceneSwitcher`/`applySceneName`、`openEditor`/`renderField`/`collectForm`、`openSettings` 等。
+- `renderNav()`：按场景的 `pages` 渲染横向导航；`renderSceneSwitcher()`：渲染顶栏场景切换下拉。
 
 ### `web/js/files.js`
 
@@ -246,7 +278,7 @@ start.bat / launcher.ps1 / python app.py
 
 ### `web/js/pages/dashboard.js`
 
-- `renderDashboard()`：请求 `/api/summary`，渲染指标卡、文件搜索、院校/套磁状态饼图和首页文字。
+- `renderDashboard()`：请求 `/api/summary`，通用渲染 `metrics`（指标卡）与 `charts`（饼图面板）、文件搜索和首页文字，指标与图表内容由各场景 `summary()` 钩子返回。
 
 ### `web/js/pages/sop.js`
 

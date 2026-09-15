@@ -167,7 +167,25 @@ def summary() -> dict:
         hot_programs = rows_to_dicts(conn.execute("select * from programs order by display_order asc, id desc limit 8").fetchall())
     for row in recent_materials:
         row["actions"] = _material_actions(row)
+
+    def _pct(part: int, whole: int) -> float:
+        return round(part / whole * 100, 1) if whole else 0
+
+    metrics = [
+        {"label": "夏令营项目", "labelEn": "Summer camps", "value": str(camp_total), "score": _pct(camp_total, total_programs)},
+        {"label": "入营/报名", "labelEn": "Admitted / Applied", "value": f"{camp_admitted}/{camp_applied}", "score": _pct(camp_admitted, camp_applied)},
+        {"label": "优营", "labelEn": "Excellent camp", "value": str(camp_excellent), "score": _pct(camp_excellent, camp_applied)},
+        {"label": "套磁回复", "labelEn": "Replies", "value": f"{counts['replied']}/{counts['sent']}", "score": _pct(counts["replied"], counts["sent"])},
+        {"label": "待办", "labelEn": "Open tasks", "value": str(counts["tasksOpen"]), "score": max(0, 100 - counts["tasksOpen"] * 8)},
+    ]
+    charts = [
+        {"title": "院校状态", "titleEn": "Program status", "rows": program_status, "jump": "programs", "jumpLabel": "管理院校", "jumpLabelEn": "Manage"},
+        {"title": "导师状态", "titleEn": "Professor status", "rows": professor_status, "jump": "contact", "jumpLabel": "前往套磁", "jumpLabelEn": "Contact"},
+    ]
+
     return {
+        "metrics": metrics,
+        "charts": charts,
         "counts": counts,
         "rates": {
             "campApplyRate": round(camp_applied / camp_total * 100, 1) if camp_total else 0,

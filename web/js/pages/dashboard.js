@@ -1,63 +1,59 @@
 import { api } from "../api.js";
 import { renderFileList } from "../files.js";
+import { sceneText, t } from "../i18n.js";
 import { state } from "../state.js";
-import { escapeHtml, percent } from "../utils.js";
+import { escapeHtml } from "../utils.js";
 import { statusColor } from "../status-colors.js";
 
 export async function renderDashboard(bindCommonActions) {
   const data = await api("/api/summary");
   const fileResults = state.q ? await api(`/api/materials?q=${encodeURIComponent(state.q)}&limit=100`) : null;
-  const c = data.counts;
   document.querySelector("#app").innerHTML = `
     <section class="screen-hero">
       <div>
-        <p class="eyebrow">GradPath · 申请进度</p>
-        <h3>推免进度总览</h3>
+        <p class="eyebrow">${t("dash.eyebrow")}</p>
+        <h3>${t("dash.overview")}</h3>
       </div>
+      <button class="secondary" data-export="report" data-format="md">${t("common.exportReport")}</button>
     </section>
     <section class="metric-grid">
-      ${metricCard("关注院校", c.campInterested, percent(c.campInterested, c.programs))}
-      ${metricCard("入营 / 报名", `${c.campAdmitted}/${c.campApplied}`, percent(c.campAdmitted, c.campApplied))}
-      ${metricCard("优营 / 通过", c.campExcellent, percent(c.campExcellent, c.campApplied))}
-      ${metricCard("套磁回复 / 发送", `${c.replied}/${c.sent}`, data.rates.replyRate)}
-      ${metricCard("待办", c.tasksOpen, Math.max(0, 100 - c.tasksOpen * 8))}
+      ${(data.metrics || []).map(metricCard).join("")}
     </section>
     ${
       state.q
-        ? `<section class="panel search-results"><div class="panel-head"><h3>全局文件搜索</h3><span class="muted">${fileResults.items.length} 个结果</span></div><div class="panel-body">${renderFileList(fileResults.items.filter((item) => !item.missing))}</div></section>`
+        ? `<section class="panel search-results"><div class="panel-head"><h3>${t("dash.searchTitle")}</h3><span class="muted">${t("dash.searchCount", { n: fileResults.items.length })}</span></div><div class="panel-body">${renderFileList(fileResults.items.filter((item) => !item.missing))}</div></section>`
         : ""
     }
     <section class="dashboard-grid">
-      ${piePanel("院校状态占比", data.programStatus, "programs", "管理院校")}
-      ${piePanel("套磁状态占比", data.professorStatus, "contact", "进入套磁")}
+      ${(data.charts || []).map(chartPanel).join("")}
     </section>
-    <section class="motto-banner"><p>${escapeHtml(state.settings?.motto || "行稳致远，步步为营")}</p></section>
+    <section class="motto-banner"><p>${escapeHtml(state.settings?.motto || "")}</p></section>
   `;
   bindCommonActions();
 }
 
-function metricCard(label, value, score) {
-  const safeScore = Math.max(0, Math.min(100, Number(score || 0)));
+function metricCard(metric) {
+  const safeScore = Math.max(0, Math.min(100, Number(metric.score || 0)));
   return `
     <div class="metric-card" style="--score:${safeScore}">
-      <span>${label}</span>
-      <strong>${value}</strong>
+      <span>${escapeHtml(sceneText(metric.label, metric.labelEn))}</span>
+      <strong>${escapeHtml(metric.value)}</strong>
       <i aria-hidden="true"></i>
     </div>
   `;
 }
 
-function piePanel(title, rows, page, actionText) {
+function chartPanel(chart) {
   return `
     <div class="panel data-panel pie-panel">
-      <div class="panel-head"><h3>${title}</h3><button class="secondary" data-jump="${page}">${actionText}</button></div>
-      <div class="panel-body">${pieChart(rows)}</div>
+      <div class="panel-head"><h3>${escapeHtml(sceneText(chart.title, chart.titleEn))}</h3>${chart.jump ? `<button class="secondary" data-jump="${escapeHtml(chart.jump)}">${escapeHtml(sceneText(chart.jumpLabel, chart.jumpLabelEn))}</button>` : ""}</div>
+      <div class="panel-body">${pieChart(chart.rows || [])}</div>
     </div>
   `;
 }
 
 function pieChart(rows) {
-  if (!rows.length) return `<div class="empty small">暂无数据</div>`;
+  if (!rows.length) return `<div class="empty small">${t("dash.noData")}</div>`;
   const total = rows.reduce((sum, item) => sum + Number(item.count || 0), 0);
   let cursor = 0;
   const segments = rows
@@ -79,7 +75,7 @@ function pieChart(rows) {
           (item, index) => `
             <div class="pie-row">
               <i style="background:${statusColor(item.name, index)}"></i>
-              <span title="${escapeHtml(item.name || "未填写")}">${escapeHtml(item.name || "未填写")}</span>
+              <span title="${escapeHtml(item.name || t("common.notSet"))}">${escapeHtml(item.name || t("common.notSet"))}</span>
               <b>${item.count}</b>
               <em>${total ? Math.round((Number(item.count || 0) / total) * 100) : 0}%</em>
             </div>

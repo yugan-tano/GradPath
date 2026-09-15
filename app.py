@@ -5,7 +5,7 @@ import sys
 # persist them without PowerShell converting stderr lines into error records.
 sys.stderr = sys.stdout
 
-from baoyan_app.server import main
+from engine.server import main
 
 
 if __name__ == "__main__":

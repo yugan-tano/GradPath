@@ -23,6 +23,9 @@ function Test-PythonCommand {
 }
 
 function Find-Python {
+    if ($env:GRADPATH_PYTHON -and (Test-PythonCommand -Command $env:GRADPATH_PYTHON)) {
+        return [pscustomobject]@{ Command = $env:GRADPATH_PYTHON; Args = @() }
+    }
     if ($env:BAOYAN_PYTHON -and (Test-PythonCommand -Command $env:BAOYAN_PYTHON)) {
         return [pscustomobject]@{ Command = $env:BAOYAN_PYTHON; Args = @() }
     }
@@ -106,8 +109,8 @@ try {
 
     New-Item -ItemType Directory -Force -Path $logDirectory | Out-Null
     Set-Location -LiteralPath $projectRoot
-    if ($null -eq $env:BAOYAN_OPEN_BROWSER) {
-        $env:BAOYAN_OPEN_BROWSER = "1"
+    if ($null -eq $env:GRADPATH_OPEN_BROWSER) {
+        $env:GRADPATH_OPEN_BROWSER = "1"
     }
     $env:PYTHONIOENCODING = "utf-8"
 

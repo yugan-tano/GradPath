@@ -1,25 +1,44 @@
 {
   "id": "tuimian",
   "name": "推免 SOP",
-  "version": "1.0.0",
+  "version": "2.0.0",
+  "settings": {
+    "brandTitle": "推免准备",
+    "workspaceName": "本地私有工作台",
+    "avatarText": "推",
+    "avatarMode": "text",
+    "motto": "金鳞岂是池中物，一遇风云便化龙",
+    "theme": "default",
+    "schoolColors": "{}",
+    "github": "https://github.com/yugan-tano/GradPath"
+  },
   "entities": {
     "materials": {
       "label": "文件",
       "endpoint": "/api/materials",
       "extraWritable": ["stage", "resource_kind"],
+      "systemColumns": {
+        "path": "text not null unique",
+        "ext": "text not null default ''",
+        "size": "integer not null default 0",
+        "mtime": "text not null default ''",
+        "relative_path": "text not null default ''",
+        "folder": "text not null default ''",
+        "missing": "integer not null default 0"
+      },
       "fields": [
         { "key": "name", "label": "名称", "type": "text", "required": true },
         { "key": "category", "label": "归类", "type": "select", "options": ["基本材料", "套磁", "院校", "项目", "面试", "参考"] },
         { "key": "related_professor", "label": "关联导师", "type": "select", "optionSource": "professors", "allowEmpty": true },
         { "key": "related_program", "label": "关联院校", "type": "select", "optionSource": "programs", "allowEmpty": true },
-        { "key": "path", "label": "本地路径", "type": "text", "full": true },
         { "key": "note", "label": "备注", "type": "textarea", "full": true },
-        { "key": "pinned", "label": "置顶", "type": "select", "options": ["0", "1"] }
+        { "key": "pinned", "label": "置顶", "type": "checkbox" }
       ]
     },
     "programs": {
       "label": "院校项目",
       "endpoint": "/api/programs",
+      "optionField": "school",
       "extraWritable": ["display_order"],
       "search": ["school", "abbreviation", "college", "major", "program_type", "direction", "stage", "date_text", "account", "status", "note"],
       "order": "display_order asc, id desc",
@@ -39,6 +58,7 @@
       ],
       "fields": [
         { "key": "school", "label": "学校", "type": "text", "required": true },
+        { "key": "abbreviation", "label": "简称", "type": "text" },
         { "key": "college", "label": "学院", "type": "text" },
         { "key": "major", "label": "专业", "type": "text" },
         { "key": "program_type", "label": "类型", "type": "select", "options": ["专硕", "学硕", "直博", "硕博连读", "其他"] },
@@ -58,6 +78,7 @@
       "search": ["name", "school", "college", "direction", "email", "status", "note"],
       "order": "display_order asc, id desc",
       "ordered": true,
+      "orderFilter": "status != '已归档'",
       "fields": [
         { "key": "name", "label": "姓名", "type": "text", "required": true },
         { "key": "school", "label": "学校", "type": "text" },
@@ -112,8 +133,46 @@
       ]
     }
   },
-  "acts": [],
-  "checklists": {},
+  "seeds": {
+    "tasks": [
+      { "title": "检查并更新简历 PDF/Word 两个版本", "scope": "基本材料", "due_date": "", "priority": "高", "status": "待办", "note": "确保材料库中的简历是最新版本。" },
+      { "title": "补全夏令营项目状态", "scope": "夏令营", "due_date": "", "priority": "中", "status": "待办", "note": "根据学校官网逐个确认报名进度。" },
+      { "title": "整理导师主页、研究方向和近期论文", "scope": "套磁", "due_date": "", "priority": "高", "status": "待办", "note": "在套磁页把论文归到对应导师下。" },
+      { "title": "准备 3 分钟中文自我介绍与英文自我介绍", "scope": "面试", "due_date": "", "priority": "中", "status": "待办", "note": "关联现有自我介绍文档。" }
+    ],
+    "questions": [
+      { "topic": "自我介绍", "question": "请用 1-3 分钟介绍一下自己。", "answer": "", "tag": "通用" },
+      { "topic": "项目", "question": "介绍一个你最熟悉的项目，重点讲清楚问题、方法、结果和你的贡献。", "answer": "", "tag": "项目" },
+      { "topic": "科研", "question": "你读过的论文里，哪一篇对你影响最大？为什么？", "answer": "", "tag": "论文" },
+      { "topic": "导师", "question": "为什么选择我的课题组？你对这个方向有哪些了解？", "answer": "", "tag": "套磁" }
+    ]
+  },
+  "checklists": {
+    "interview_basic": {
+      "owner": "global",
+      "items": ["中文自我介绍 3 分钟", "英文自我介绍 3 分钟", "简历已更新到最新版", "成绩单与排名证明", "获奖证书整理"]
+    },
+    "interview_knowledge": {
+      "owner": "global",
+      "items": ["核心专业课系统复习", "科研项目细节梳理（问题/方法/结果/贡献）", "读过的论文动机与贡献", "目标导师研究方向调研"]
+    },
+    "interview_mock": {
+      "owner": "global",
+      "items": ["完成 1 次模拟面试", "模拟面试复盘记录", "高频问题答案打磨", "临场应变与英文问答演练"]
+    }
+  },
+  "acts": [
+    {
+      "id": "interview",
+      "name": "推免面试 SOP",
+      "stages": [
+        { "id": "i_materials", "name": "材料与自我介绍", "checklist": "interview_basic", "exit": { "op": "checklist", "checklist": "interview_basic", "target": 1.0 } },
+        { "id": "i_knowledge", "name": "专业与科研复习", "checklist": "interview_knowledge", "enter": { "op": "stageDone", "stage": "i_materials" }, "exit": { "op": "checklist", "checklist": "interview_knowledge", "target": 1.0 } },
+        { "id": "i_mock", "name": "模拟面试", "checklist": "interview_mock", "enter": { "op": "stageDone", "stage": "i_knowledge" }, "exit": { "op": "checklist", "checklist": "interview_mock", "target": 1.0 } },
+        { "id": "i_formal", "name": "正式面试与复盘", "enter": { "op": "stageDone", "stage": "i_mock" } }
+      ]
+    }
+  ],
   "templates": [],
   "timeline": []
 }

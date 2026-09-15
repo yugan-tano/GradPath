@@ -3,27 +3,27 @@ from __future__ import annotations
 import json
 import mimetypes
 import os
+import re
 import shutil
 import sys
 import threading
 import time
 import traceback
 import urllib.parse
-import re
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-from .analytics import summary
+from . import sop
 from .bootstrap import bootstrap
 from .config import HOST, PORT, WEB_DIR
-from .contact import contact_workspace
 from .dataroot import migrate, rollback, root_info, source_dir, writes_paused
-from .materials import cleanup_generated_records, delete_material_file, get_material, resource_directory, resource_groups, scan_materials, seed_professors_from_letters, upload_material
-from .repositories import app_options, backup_db, create_row, delete_row, list_table, move_professor, move_program, update_row
+from .entities import app_options, backup_db, create_row, delete_row, list_table, move_row, update_row
+from .hooks import call
+from .materials import delete_material_file, get_material, resource_directory, resource_groups, scan_materials, upload_material
 from .scene import active_scene, entity_keys
 from .settings import avatar_response, read_settings, save_avatar, update_settings
-from .utils import is_safe_data_path, is_safe_path, now_text
+from .utils import is_safe_data_path, is_safe_path
 
 
 def _entity_alt() -> str:
@@ -47,7 +47,7 @@ def read_body(handler: BaseHTTPRequestHandler) -> dict:
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "BaoyanDesk/1.2"
+    server_version = "GradPath/0.1"
 
     def log_message(self, fmt: str, *args) -> None:
         status = int(args[1]) if len(args) > 1 and str(args[1]).isdigit() else 0
@@ -64,17 +64,19 @@ class Handler(BaseHTTPRequestHandler):
     def send_exception(self, exc: Exception) -> None:
         print(f"[错误] {self.command} {self.path}: {exc}", file=sys.stderr)
         traceback.print_exc()
-        send_json(self, {"error": str(exc)}, 500)
+        status = 403 if isinstance(exc, PermissionError) else (404 if isinstance(exc, (KeyError, FileNotFoundError)) else 500)
+        send_json(self, {"error": str(exc)}, status)
 
+    # ----- GET -----
     def do_GET(self) -> None:
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path
         query = urllib.parse.parse_qs(parsed.query)
         try:
             if path == "/api/summary":
-                return send_json(self, summary())
+                return send_json(self, self._hook_or_400("summary"))
             if path == "/api/contact-workspace":
-                return send_json(self, contact_workspace())
+                return send_json(self, self._hook_or_400("contact_workspace"))
             if path == "/api/materials/groups":
                 return send_json(self, resource_groups())
             if path == "/api/resources":
@@ -92,6 +94,12 @@ class Handler(BaseHTTPRequestHandler):
                 return send_json(self, root_info())
             if path == "/api/scene":
                 return send_json(self, active_scene())
+            if path == "/api/sop":
+                return send_json(self, sop.list_acts())
+            match = re.fullmatch(r"/api/checklist/([^/]+)/([^/]*)", path)
+            if match:
+                from . import checklist
+                return send_json(self, checklist.list_checklist(match.group(1), match.group(2)))
             match = re.fullmatch(rf"/api/({_entity_alt()})", path)
             if match:
                 return send_json(self, list_table(match.group(1), query))
@@ -102,6 +110,13 @@ class Handler(BaseHTTPRequestHandler):
         except Exception as exc:
             self.send_exception(exc)
 
+    def _hook_or_400(self, name: str):
+        result = call(name)
+        if result is None:
+            raise KeyError(f"当前场景未提供 {name} 能力")
+        return result
+
+    # ----- POST -----
     def do_POST(self) -> None:
         path = urllib.parse.urlparse(self.path).path
         try:
@@ -123,16 +138,24 @@ class Handler(BaseHTTPRequestHandler):
                 return self.open_path(source_dir())
             if path == "/api/folders/open":
                 return self.open_path(Path(read_body(self).get("path", "")))
-            match = re.fullmatch(r"/api/programs/(\d+)/move", path)
+            match = re.fullmatch(r"/api/sop/([^/]+)/advance", path)
+            if match:
+                return send_json(self, sop.advance_stage(match.group(1)))
+            match = re.fullmatch(r"/api/sop/([^/]+)/start", path)
+            if match:
+                return send_json(self, sop.start_stage(match.group(1)))
+            match = re.fullmatch(r"/api/sop/([^/]+)/reset", path)
+            if match:
+                return send_json(self, sop.reset_stage(match.group(1)))
+            match = re.fullmatch(r"/api/checklist/([^/]+)/([^/]*)/items", path)
+            if match:
+                from . import checklist
+                return send_json(self, checklist.add_item(match.group(1), match.group(2), read_body(self).get("title", "")), 201)
+            match = re.fullmatch(rf"/api/({_entity_alt()})/(\d+)/move", path)
             if match:
                 payload = read_body(self)
                 target_position = payload.get("target_position")
-                return send_json(self, move_program(int(match.group(1)), int(payload.get("direction", 0)), int(target_position) if target_position else None))
-            match = re.fullmatch(r"/api/professors/(\d+)/move", path)
-            if match:
-                payload = read_body(self)
-                target_position = payload.get("target_position")
-                return send_json(self, move_professor(int(match.group(1)), int(payload.get("direction", 0)), int(target_position) if target_position else None))
+                return send_json(self, move_row(match.group(1), int(match.group(2)), int(payload.get("direction", 0)), int(target_position) if target_position else None))
             match = re.fullmatch(r"/api/materials/(\d+)/(open|open-folder)", path)
             if match:
                 return self.open_material(int(match.group(1)), folder=match.group(2) == "open-folder")
@@ -143,6 +166,7 @@ class Handler(BaseHTTPRequestHandler):
         except Exception as exc:
             self.send_exception(exc)
 
+    # ----- PATCH -----
     def do_PATCH(self) -> None:
         path = urllib.parse.urlparse(self.path).path
         try:
@@ -150,6 +174,10 @@ class Handler(BaseHTTPRequestHandler):
                 return send_json(self, {"error": "数据目录正在迁移，请稍后重试"}, 503)
             if path == "/api/settings":
                 return send_json(self, update_settings(read_body(self)))
+            match = re.fullmatch(r"/api/checklist/items/(\d+)", path)
+            if match:
+                from . import checklist
+                return send_json(self, checklist.set_done(int(match.group(1)), bool(read_body(self).get("done", True))))
             match = re.fullmatch(rf"/api/({_entity_alt()})/(\d+)", path)
             if not match:
                 return send_json(self, {"error": "Not found"}, 404)
@@ -157,6 +185,7 @@ class Handler(BaseHTTPRequestHandler):
         except Exception as exc:
             self.send_exception(exc)
 
+    # ----- DELETE -----
     def do_DELETE(self) -> None:
         path = urllib.parse.urlparse(self.path).path
         try:
@@ -165,6 +194,10 @@ class Handler(BaseHTTPRequestHandler):
             file_match = re.fullmatch(r"/api/materials/(\d+)/file", path)
             if file_match:
                 return send_json(self, delete_material_file(int(file_match.group(1))))
+            item_match = re.fullmatch(r"/api/checklist/items/(\d+)", path)
+            if item_match:
+                from . import checklist
+                return send_json(self, checklist.delete_item(int(item_match.group(1))))
             match = re.fullmatch(rf"/api/({_entity_alt()})/(\d+)", path)
             if not match:
                 return send_json(self, {"error": "Not found"}, 404)
@@ -172,6 +205,7 @@ class Handler(BaseHTTPRequestHandler):
         except Exception as exc:
             self.send_exception(exc)
 
+    # ----- helpers -----
     def serve_static(self, path: str) -> None:
         if path == "/":
             path = "/index.html"
@@ -236,13 +270,13 @@ def main() -> None:
     actual_port = int(server.server_address[1])
     url = f"http://{HOST}:{actual_port}"
     print("=" * 52)
-    print(f"  推免准备系统  {url}")
-    print(f"  资料目录      {source_dir()}")
+    print(f"  GradPath 通用 SOP 工作台  {url}")
+    print(f"  数据目录      {source_dir()}")
     if fallback_reason:
         print(f"  端口调整      {fallback_reason}")
-    print("  状态          已就绪（资料将在后台同步）")
+    print("  状态          已就绪")
     print("=" * 52)
-    if os.environ.get("BAOYAN_OPEN_BROWSER") == "1":
+    if os.environ.get("GRADPATH_OPEN_BROWSER") == "1":
         timer = threading.Timer(0.4, webbrowser.open, args=(url,))
         timer.daemon = True
         timer.start()
@@ -259,9 +293,7 @@ def create_server() -> tuple[ThreadingHTTPServer, str]:
     try:
         return ThreadingHTTPServer((HOST, PORT), Handler), ""
     except OSError as exc:
-        # Windows may reserve a port range even when netstat shows no listener.
-        # A busy or reserved default port should not make the whole app unusable.
-        if os.environ.get("BAOYAN_PORT"):
+        if os.environ.get("GRADPATH_PORT"):
             raise
         server = ThreadingHTTPServer((HOST, 0), Handler)
         actual_port = int(server.server_address[1])
@@ -271,13 +303,8 @@ def create_server() -> tuple[ThreadingHTTPServer, str]:
 def background_material_sync() -> None:
     started = time.perf_counter()
     try:
-        cleanup_generated_records()
         result = scan_materials()
-        seed_professors_from_letters()
         elapsed = time.perf_counter() - started
-        print(
-            f"[同步] 完成  新增 {result['inserted']} · 更新 {result['updated']} · "
-            f"清理 {result.get('purged', 0)} · 缺失 {result['missing']}  ({elapsed:.1f}s)"
-        )
+        print(f"[同步] 完成  新增 {result['inserted']} · 更新 {result['updated']} · 缺失 {result['missing']}  ({elapsed:.1f}s)")
     except Exception as exc:
         print(f"[同步] 失败  {exc}", file=sys.stderr)

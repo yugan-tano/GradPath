@@ -1,13 +1,14 @@
 """Generic checklist engine.
 
-A checklist is a list of checkable items that can be mounted onto any owner:
-  * ``owner_type = "global"``        -> a workspace-wide checklist
-  * ``owner_type = "stage"``         -> a stage (SOP engine, step 4)
-  * ``owner_type = <entity key>``    -> a concrete entity instance (owner_id = row id)
+A checklist is a list of checkable items mounted onto an owner:
 
-The item templates are declared in ``scenes/<id>/scene.json`` under
-``checklists``; the engine materialises them into ``checklist_items`` rows on
-first access so each owner keeps its own done-state and progress.
+  * ``owner_type = "global"``        -> workspace-wide checklist (owner_id = checklist id)
+  * ``owner_type = "stage"``         -> per-stage checklist (owner_id = stage id)
+  * ``owner_type = <entity key>``    -> per-entity-instance (owner_id = row id)
+
+Item templates live in ``scenes/<id>/scene.json`` under ``checklists``; the
+engine materialises them into ``checklist_items`` rows on first access so each
+owner keeps its own done-state and progress.
 """
 
 from __future__ import annotations
@@ -46,7 +47,10 @@ def ensure_checklist(owner_type: str, owner_id: str, checklist_id: str) -> None:
 def ensure_owner_checklists(owner_type: str, owner_id: str) -> None:
     for checklist_id, cfg in active_scene().get("checklists", {}).items():
         if cfg.get("owner") == owner_type:
-            ensure_checklist(owner_type, owner_id, checklist_id)
+            # A global checklist is identified by its own id; per-entity/per-stage
+            # checklists are identified by their owner id.
+            oid = checklist_id if owner_type == "global" else owner_id
+            ensure_checklist(owner_type, oid, checklist_id)
 
 
 def list_checklist(owner_type: str, owner_id: str) -> dict:
@@ -65,6 +69,15 @@ def list_checklist(owner_type: str, owner_id: str) -> dict:
         "done": done,
         "progress": (done / total) if total else 1.0,
     }
+
+
+def global_progress(checklist_id: str) -> float:
+    """Progress of a workspace-wide checklist (used by SOP exit conditions)."""
+    cfg = _checklist_config(checklist_id)
+    if not cfg:
+        return 0.0
+    ensure_checklist("global", checklist_id, checklist_id)
+    return list_checklist("global", checklist_id)["progress"]
 
 
 def set_done(item_id: int, done: bool) -> dict:

@@ -6,14 +6,20 @@ import re
 import shutil
 from pathlib import Path
 
-from .config import DEFAULT_SETTINGS, MAX_AVATAR_BYTES
+from .config import MAX_AVATAR_BYTES
 from .dataroot import data_dir
 from .db import connect
 from .materials import parse_upload
+from .scene import scene_settings
 from .utils import now_text
 
 ALLOWED_AVATAR_EXTS = {".png", ".jpg", ".jpeg", ".gif", ".webp"}
 HEX_COLOR_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
+
+
+def default_settings() -> dict:
+    """Default settings come from the scene, not hardcoded in the engine."""
+    return scene_settings()
 
 
 def avatar_path() -> Path | None:
@@ -24,10 +30,10 @@ def avatar_path() -> Path | None:
 
 
 def read_settings() -> dict:
+    defaults = default_settings()
     with connect() as conn:
         values = {row["key"]: row["value"] for row in conn.execute("select key, value from settings").fetchall()}
-    settings = {key: values.get(key, value) for key, value in DEFAULT_SETTINGS.items()}
-    settings["github"] = DEFAULT_SETTINGS["github"]
+    settings = {key: values.get(key, value) for key, value in defaults.items()}
     try:
         school_colors = json.loads(settings.get("schoolColors") or "{}")
     except (TypeError, json.JSONDecodeError):
@@ -43,7 +49,7 @@ def read_settings() -> dict:
 
 
 def update_settings(payload: dict) -> dict:
-    allowed = set(DEFAULT_SETTINGS)
+    allowed = set(default_settings())
     with connect() as conn:
         for key, value in payload.items():
             if key not in allowed:
@@ -73,8 +79,6 @@ def update_settings(payload: dict) -> dict:
                 text = text[:2]
             elif key in {"brandTitle", "workspaceName"}:
                 text = text[:32]
-            elif key == "github":
-                text = DEFAULT_SETTINGS[key]
             elif key == "avatarMode" and text not in {"text", "upload"}:
                 text = "text"
             conn.execute(

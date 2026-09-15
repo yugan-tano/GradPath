@@ -3,6 +3,7 @@ import { deleteFile, openFolderPath, openMaterial } from "./files.js";
 import { renderContact } from "./pages/contact.js";
 import { renderDashboard } from "./pages/dashboard.js";
 import { renderResources } from "./pages/resources.js";
+import { renderSop } from "./pages/sop.js";
 import { renderTablePage } from "./pages/table.js";
 import { ensureScene } from "./scene.js";
 import { pages, state } from "./state.js";
@@ -22,6 +23,7 @@ async function render() {
   $("#pageTitle").textContent = page.title;
   $("#searchInput").placeholder = state.page === "dashboard" ? "搜索全部文件" : `搜索${page.title}`;
   if (state.page === "dashboard") return renderDashboard(bindCommonActions);
+  if (state.page === "sop") return renderSop(render);
   if (state.page === "contact") return renderContact(bindCommonActions, render);
   if (state.page === "resources") return renderResources(bindCommonActions, scanMaterials);
   return renderTablePage(state.page, bindCommonActions, render);

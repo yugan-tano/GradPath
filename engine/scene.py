@@ -120,6 +120,38 @@ def entity_filter_field(entity_key: str) -> str | None:
     return cfg.get("filterField")
 
 
+def scene_settings(scene: dict | None = None) -> dict:
+    """Default settings declared by the scene (branding, theme, etc.)."""
+    data = scene or active_scene()
+    return data.get("settings", {})
+
+
+def scene_seeds(scene: dict | None = None) -> dict[str, list[dict]]:
+    """Seed rows declared by the scene, keyed by entity."""
+    data = scene or active_scene()
+    return data.get("seeds", {})
+
+
+def scene_acts(scene: dict | None = None) -> list[dict]:
+    """The act -> stage -> checklist tree for the SOP engine."""
+    data = scene or active_scene()
+    return data.get("acts", [])
+
+
+def scene_templates(scene: dict | None = None) -> list[dict]:
+    data = scene or active_scene()
+    return data.get("templates", [])
+
+
+def entity_system_columns(entity_key: str) -> dict[str, str]:
+    """Engine-managed columns (written by indexing, not by the user form).
+
+    Declared as ``"systemColumns": {"path": "text not null unique", ...}``.
+    """
+    cfg = entity(entity_key) or {}
+    return dict(cfg.get("systemColumns", {}))
+
+
 def validate_scene(scene: dict) -> list[str]:
     """Return a list of validation errors (empty means valid)."""
     errors: list[str] = []
@@ -143,19 +175,40 @@ def _column_sql(name: str, field: dict | None) -> str:
 
 
 def ensure_entity_table(conn, entity_key: str) -> None:
-    """Create a table for an entity from its field config (idempotent)."""
+    """Create (or migrate) a table for an entity from its field config.
+
+    Idempotent: if the table already exists, any column declared in the scene
+    but missing from the table is added via ``alter table``. This is what makes
+    "edit JSON -> schema follows" work without losing existing rows.
+    """
     existing = {row["name"] for row in conn.execute("pragma table_info(%s)" % entity_key)}
-    if "id" in existing:
-        return
     cfg = entity(entity_key) or {}
-    parts = ["id integer primary key autoincrement"]
+    field_defs = {f["key"]: f for f in cfg.get("fields", [])}
+    system_cols = entity_system_columns(entity_key)
+
+    if "id" not in existing:
+        parts = ["id integer primary key autoincrement"]
+        for field in cfg.get("fields", []):
+            parts.append(f"{field['key']} {_column_sql(field['key'], field)}")
+        for col in cfg.get("extraWritable", []):
+            if col not in field_defs:
+                parts.append(f"{col} {_column_sql(col, None)}")
+        for col, ddl in system_cols.items():
+            parts.append(f"{col} {ddl}")
+        parts += ["created_at text not null", "updated_at text not null"]
+        conn.execute(f"create table if not exists {entity_key} ({', '.join(parts)})")
+        return
+
     for field in cfg.get("fields", []):
-        parts.append(f"{field['key']} {_column_sql(field['key'], field)}")
+        key = field["key"]
+        if key not in existing:
+            conn.execute(f"alter table {entity_key} add column {key} {_column_sql(key, field)}")
     for col in cfg.get("extraWritable", []):
-        if col not in {f["key"] for f in cfg.get("fields", [])}:
-            parts.append(f"{col} {_column_sql(col, None)}")
-    parts += ["created_at text not null", "updated_at text not null"]
-    conn.execute(f"create table if not exists {entity_key} ({', '.join(parts)})")
+        if col not in existing:
+            conn.execute(f"alter table {entity_key} add column {col} {_column_sql(col, None)}")
+    for col, ddl in system_cols.items():
+        if col not in existing:
+            conn.execute(f"alter table {entity_key} add column {col} {ddl}")
 
 
 def ensure_scene_entities() -> None:

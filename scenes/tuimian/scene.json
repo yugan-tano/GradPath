@@ -3,11 +3,11 @@
   "name": "推免 SOP",
   "version": "2.0.0",
   "settings": {
-    "brandTitle": "推免准备",
-    "workspaceName": "本地私有工作台",
-    "avatarText": "推",
+    "brandTitle": "GradPath",
+    "workspaceName": "推免准备 · 本地工作台",
+    "avatarText": "",
     "avatarMode": "text",
-    "motto": "金鳞岂是池中物，一遇风云便化龙",
+    "motto": "行稳致远，步步为营",
     "theme": "default",
     "schoolColors": "{}",
     "github": "https://github.com/yugan-tano/GradPath"

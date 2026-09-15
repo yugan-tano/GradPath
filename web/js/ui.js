@@ -5,6 +5,8 @@ import { pages, state } from "./state.js";
 import { $, escapeHtml, shortText } from "./utils.js";
 import { statusStyle } from "./status-colors.js";
 
+const BRAND_LOGO_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z"/><path d="M22 10v6"/><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5"/></svg>`;
+
 export function toast(message) {
   const el = $("#toast");
   el.textContent = message;
@@ -22,28 +24,26 @@ export async function loadSettings() {
 
 export function applySettings() {
   const settings = state.settings || {};
-  const brandTitle = settings.brandTitle || "推免准备";
-  const workspaceName = settings.workspaceName || "本地私有工作台";
+  const brandTitle = settings.brandTitle || "GradPath";
+  const workspaceName = settings.workspaceName || "推免准备 · 本地工作台";
   $("#brandTitle").textContent = brandTitle;
   $("#workspaceName").textContent = workspaceName;
-  document.title = `${brandTitle}工作台`;
+  document.title = `${brandTitle} 工作台`;
   document.body.dataset.theme = settings.theme || "default";
   const mark = $("#brandMark");
   if (settings.avatarMode === "upload" && settings.avatarUrl) {
     mark.innerHTML = `<img src="${settings.avatarUrl}" alt="" />`;
+  } else if (settings.avatarText) {
+    mark.textContent = settings.avatarText.slice(0, 2);
   } else {
-    mark.textContent = (settings.avatarText || brandTitle || "推").slice(0, 2);
+    mark.innerHTML = BRAND_LOGO_SVG;
   }
 }
 
 export function renderNav(setPage) {
   $("#nav").innerHTML = pages
     .map(
-      (page) => `
-        <button class="nav-btn ${state.page === page.id ? "active" : ""}" data-page="${page.id}">
-          <span class="nav-icon">${page.icon}</span><span>${page.title}</span>
-        </button>
-      `,
+      (page) => `<button class="nav-btn ${state.page === page.id ? "active" : ""}" data-page="${page.id}">${page.title}</button>`,
     )
     .join("");
   $("#nav").querySelectorAll("button").forEach((button) => button.addEventListener("click", () => setPage(button.dataset.page)));
@@ -299,8 +299,10 @@ function updateAvatarPreview() {
     preview.innerHTML = `<img src="${URL.createObjectURL(file)}" alt="" />`;
   } else if (mode === "upload" && state.settings?.avatarUrl) {
     preview.innerHTML = `<img src="${state.settings.avatarUrl}" alt="" />`;
+  } else if (dialog.querySelector('[name="avatarText"]').value) {
+    preview.textContent = dialog.querySelector('[name="avatarText"]').value.slice(0, 2);
   } else {
-    preview.textContent = (dialog.querySelector('[name="avatarText"]').value || state.settings?.brandTitle || "推").slice(0, 2);
+    preview.innerHTML = BRAND_LOGO_SVG;
   }
 }
 

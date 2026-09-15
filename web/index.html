@@ -3,37 +3,50 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>推免准备工作台</title>
-    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%235877e8'/%3E%3Ctext x='32' y='43' text-anchor='middle' font-size='34' fill='white'%3E%E6%8E%A8%3C/text%3E%3C/svg%3E" />
+    <title>GradPath 工作台</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230e7c5f'/%3E%3Cpath d='M32 18 8 30l24 12 24-12-24-12Z' fill='white'/%3E%3Cpath d='M18 40v8c0 4 6 8 14 8s14-4 14-8v-8' fill='none' stroke='white' stroke-width='3'/%3E%3Cpath d='M56 30v10' stroke='white' stroke-width='3'/%3E%3C/svg%3E" />
     <link rel="stylesheet" href="/style.css" />
   </head>
   <body>
-    <aside class="sidebar">
-      <div class="brand">
-        <div class="brand-mark" id="brandMark">推</div>
-        <div>
-          <h1 id="brandTitle">推免准备</h1>
-          <p id="workspaceName">本地私有工作台</p>
+    <header class="topbar">
+      <div class="topbar-top">
+        <div class="brand">
+          <div class="brand-mark" id="brandMark" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z" />
+              <path d="M22 10v6" />
+              <path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5" />
+            </svg>
+          </div>
+          <div class="brand-text">
+            <h1 id="brandTitle">GradPath</h1>
+            <p id="workspaceName">推免准备 · 本地工作台</p>
+          </div>
+        </div>
+
+        <div class="search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="11" cy="11" r="7" />
+            <path d="m21 21-4.3-4.3" />
+          </svg>
+          <input id="searchInput" placeholder="搜索全部文件" />
+        </div>
+
+        <div class="topbar-actions">
+          <button class="ghost" id="scanBtn" title="重新扫描保研准备文件夹">扫描材料</button>
+          <button class="ghost" id="backupBtn" title="备份当前数据库">备份数据</button>
+          <button class="primary" id="settingsBtn" title="调整工作台信息和风格">设置</button>
         </div>
       </div>
-      <nav id="nav"></nav>
-      <div class="sidebar-foot">
-        <button class="ghost" id="settingsBtn" title="调整工作台信息和风格">设置</button>
-        <button class="ghost" id="scanBtn" title="重新扫描保研准备文件夹">扫描材料</button>
-        <button class="ghost" id="backupBtn" title="备份当前数据库">备份数据</button>
-      </div>
-    </aside>
+
+      <nav id="nav" class="nav"></nav>
+    </header>
 
     <main class="main">
-      <header class="topbar">
-        <div>
-          <p class="eyebrow">Today</p>
-          <h2 id="pageTitle">总览</h2>
-        </div>
-        <div class="search">
-          <input id="searchInput" placeholder="搜索当前页面" />
-        </div>
-      </header>
+      <div class="page-head">
+        <p class="eyebrow">GradPath</p>
+        <h2 id="pageTitle">总览</h2>
+      </div>
 
       <section id="toast" class="toast" hidden></section>
       <section id="app"></section>
@@ -89,12 +102,18 @@
             </label>
             <div>
               <span class="field-caption">头像预览</span>
-              <div class="avatar-preview" id="avatarPreview">推</div>
+              <div class="avatar-preview" id="avatarPreview">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z" />
+                  <path d="M22 10v6" />
+                  <path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5" />
+                </svg>
+              </div>
             </div>
           </div>
           <label class="field">
             <span>头像文字</span>
-            <input name="avatarText" maxlength="2" placeholder="可为空" />
+            <input name="avatarText" maxlength="2" placeholder="留空显示 Logo" />
           </label>
           <label class="field">
             <span>上传头像</span>
@@ -107,7 +126,7 @@
           <label class="field full">
             <span>整体风格</span>
             <select name="theme">
-              <option value="default">晴空薄荷</option>
+              <option value="default">青野暖阳</option>
               <option value="morandi">莫兰迪色系</option>
               <option value="pink">粉红泡沫</option>
               <option value="forest">松林薄雾</option>
@@ -142,7 +161,7 @@
           </div>
         </div>
         <div class="settings-meta">
-          <a href="https://github.com/BlairCode/baoyan_workbench" target="_blank" rel="noreferrer">GitHub: BlairCode/baoyan_workbench</a>
+          <a href="https://github.com/yugan-tano/GradPath" target="_blank" rel="noreferrer">GitHub: yugan-tano/GradPath</a>
           <span>本网站为开源项目，仅供学习与交流使用，使用风险由用户自行承担。</span>
         </div>
         <menu>

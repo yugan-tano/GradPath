@@ -5,7 +5,7 @@ const STATUS_COLORS = {
   "待建档": "#7D8BA6",
   "未联系": "#7D8BA6",
   "有意向": "#5B82D8",
-  "关注中": "#5877E8",
+  "关注中": "#0E7C5F",
   "填报中": "#2C9E91",
   "报名": "#D58B3D",
   "入营": "#34A56F",
@@ -31,12 +31,12 @@ const STATUS_COLORS = {
   "被鸽了": "#AA647B",
   "养鱼": "#718F49",
   "已归档": "#8B93A2",
-  "待办": "#5877E8",
-  "进行中": "#D58B3D",
+  "待办": "#0E7C5F",
+  "进行中": "#D98E2B",
   "已完成": "#23875B",
 };
 
-const FALLBACK_COLORS = ["#5877E8", "#2C9E91", "#D58B3D", "#7C5CCF", "#D26387", "#34A56F", "#C4774D", "#6F7480"];
+const FALLBACK_COLORS = ["#0E7C5F", "#2C9E91", "#D98E2B", "#7C5CCF", "#D26387", "#34A56F", "#C4774D", "#6F7480"];
 
 export function statusColor(name, index = 0) {
   return STATUS_COLORS[String(name || "未填写").trim()] || FALLBACK_COLORS[index % FALLBACK_COLORS.length];

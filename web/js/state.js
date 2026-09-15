@@ -11,11 +11,11 @@ export const state = {
 };
 
 export const pages = [
-  { id: "dashboard", title: "总览", icon: "总" },
-  { id: "sop", title: "面试 SOP", icon: "面" },
-  { id: "contact", title: "套磁", icon: "套" },
-  { id: "resources", title: "资源", icon: "资" },
-  { id: "programs", title: "院校", icon: "校" },
-  { id: "tasks", title: "待办", icon: "办" },
-  { id: "questions", title: "面试", icon: "题" },
+  { id: "dashboard", title: "总览" },
+  { id: "sop", title: "面试 SOP" },
+  { id: "contact", title: "套磁" },
+  { id: "resources", title: "资源" },
+  { id: "programs", title: "院校" },
+  { id: "tasks", title: "待办" },
+  { id: "questions", title: "面试" },
 ];

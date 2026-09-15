@@ -11,8 +11,8 @@ export async function renderDashboard(bindCommonActions) {
   document.querySelector("#app").innerHTML = `
     <section class="screen-hero">
       <div>
-        <p class="eyebrow">Application Command Center</p>
-        <h3>推免进度数据大屏</h3>
+        <p class="eyebrow">GradPath · 申请进度</p>
+        <h3>推免进度总览</h3>
       </div>
     </section>
     <section class="metric-grid">
@@ -31,7 +31,7 @@ export async function renderDashboard(bindCommonActions) {
       ${piePanel("院校状态占比", data.programStatus, "programs", "管理院校")}
       ${piePanel("套磁状态占比", data.professorStatus, "contact", "进入套磁")}
     </section>
-    <section class="motto-banner"><p>${escapeHtml(state.settings?.motto || "金鳞岂是池中物，一遇风云便化龙")}</p></section>
+    <section class="motto-banner"><p>${escapeHtml(state.settings?.motto || "行稳致远，步步为营")}</p></section>
   `;
   bindCommonActions();
 }

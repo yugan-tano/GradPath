@@ -6,8 +6,8 @@ timeline. The engine reads this config to drive CRUD, forms, and lists, so
 adding a new scene never requires touching engine code.
 
 Field types (design convention B, frozen minimal set):
-  text, textarea, number, date, select, multiselect, checkbox, file,
-  keyvalue (custom key/value module), links (cross-entity references)
+  text, textarea, number, date, datetime, select, multiselect, checkbox,
+  file, keyvalue (custom key/value module), links (cross-entity references)
 """
 
 from __future__ import annotations
@@ -21,7 +21,7 @@ from .dataroot import app_root, data_dir
 SCENES_DIR = app_root() / "scenes"
 DEFAULT_SCENE = "tuimian"
 
-FIELD_TYPES = {"text", "textarea", "number", "date", "select", "multiselect", "checkbox", "file", "keyvalue", "links"}
+FIELD_TYPES = {"text", "textarea", "number", "date", "datetime", "select", "multiselect", "checkbox", "file", "keyvalue", "links"}
 
 # Field types that are NOT physical columns in the entity table.
 VIRTUAL_FIELD_TYPES = {"links"}
@@ -30,6 +30,7 @@ _FIELD_SQL = {
     "text": "text not null default ''",
     "textarea": "text not null default ''",
     "date": "text not null default ''",
+    "datetime": "text not null default ''",
     "select": "text not null default ''",
     "multiselect": "text not null default ''",
     "file": "text not null default ''",

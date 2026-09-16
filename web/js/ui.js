@@ -255,7 +255,7 @@ function renderField(field, row, options) {
   } else if (type === "file") {
     control = `<input name="${field.key}" type="file" />`;
   } else {
-    const inputType = type === "number" ? "number" : type === "date" ? "date" : "text";
+    const inputType = type === "number" ? "number" : type === "date" ? "date" : type === "datetime" ? "datetime-local" : "text";
     control = `<input name="${field.key}" type="${inputType}" value="${escapeHtml(value)}" />`;
   }
   return `<label class="field${full}"><span>${label(field.label)}</span>${control}</label>`;

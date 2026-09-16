@@ -344,6 +344,13 @@ const LABELS = {
   写作: "Writing",
   口语: "Speaking",
   最近考试日期: "Test date",
+  国家: "Country",
+  目标院校: "Target school",
+  相关导师: "Professor",
+  资助形式: "Funding",
+  语言要求: "Language requirement",
+  截止时间: "Deadline",
+  治安了解: "Safety",
 };
 
 export function currentLang() {
